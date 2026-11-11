@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv sync*)",
+      "Bash(uv run pytest*)",
+      "Bash(uv run ruff*)",
+      "Bash(uv run pre-commit*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git ls-files*)",
+      "Bash(gh auth status*)"
+    ],
+    "ask": [
+      "Read(./data/**)"
+    ],
+    "deny": [
+      "Read(~/.config/pain-tracker/**)",
+      "Read(**/secrets.toml)",
+      "Read(./.env*)",
+      "Read(**/*service*account*.json)",
+      "Read(**/client_secret*.json)"
+    ]
+  }
+}

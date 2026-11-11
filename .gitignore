@@ -32,6 +32,9 @@ data/
 # Real survey column mapping (example file is committed)
 config/metrics.toml
 
+# Per-user Claude Code settings (shared .claude/settings.json is committed)
+.claude/settings.local.json
+
 # Tooling caches
 .pytest_cache/
 .ruff_cache/

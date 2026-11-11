@@ -1,0 +1,59 @@
+# Maps the Google Sheet's column headers to stable keys used by the code.
+# Copy to config/metrics.toml (gitignored) to override without touching git;
+# the loader prefers metrics.toml when it exists.
+
+[timestamp]
+column = "Timestamp"
+
+# min/max define the valid rating scale; values outside it are treated as missing.
+# NOTE: the scale is assumed to be 0-10 -- adjust if the survey differs.
+# higher_is_better drives chart colours and "improving / worsening" wording.
+
+[[metrics]]
+key = "headache"
+column = "Headache Severity"
+label = "Headache"
+min = 0
+max = 10
+higher_is_better = false
+
+[[metrics]]
+key = "fatigue"
+column = "Fatigue / Body Aches"
+label = "Fatigue / aches"
+min = 0
+max = 10
+higher_is_better = false
+
+[[metrics]]
+key = "depression"
+column = "Depression"
+label = "Depression"
+min = 0
+max = 10
+higher_is_better = false
+
+[[metrics]]
+key = "anxiety"
+column = "Anxiety"
+label = "Anxiety"
+min = 0
+max = 10
+higher_is_better = false
+
+[[metrics]]
+key = "excitement"
+column = "Excitement"
+label = "Excitement"
+min = 0
+max = 10
+higher_is_better = true
+
+# Added to the survey partway through the log, so earlier rows are blank.
+[[metrics]]
+key = "neck_pain"
+column = "Neck Pain"
+label = "Neck pain"
+min = 0
+max = 10
+higher_is_better = false

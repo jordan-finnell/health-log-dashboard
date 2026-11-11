@@ -2,7 +2,7 @@
 
 A private, self-hosted Streamlit dashboard for tracking, trending and visualizing a personal daily health log. A Google Form feeds a Google Sheet; the app reads that sheet (read-only) and turns it into trends, calendar heatmaps and pattern analysis, viewable from a laptop or a phone on the home network.
 
-> **Status: in development.** The data layer is next, then the UI. See the roadmap below.
+> **Status: in development.** The data layer is built and tested; the UI is next. See the roadmap below.
 
 The repo is public, but the author's data is not in it. With no credentials configured the app runs in **demo mode** on synthetic data, so everything here can be tried without access to any real log.
 
@@ -74,7 +74,7 @@ uv run pre-commit run --all-files    # lint + secret scan
 
 ## Roadmap
 - [x] Repo hygiene: gitignore, dockerignore, pre-commit with secret scanning
-- [ ] Data layer: sources, transform, analytics, synthetic generator, tests
+- [x] Data layer: sources, transform, analytics, synthetic generator, tests
 - [ ] Streamlit UI in demo mode
 - [ ] Live Google Sheets mode with password gate
 - [ ] Docker Compose deployment for LAN/phone access

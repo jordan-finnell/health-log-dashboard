@@ -5,7 +5,9 @@ Private Streamlit dashboard that tracks, trends and visualizes a personal daily 
 Single user. Runs on a Windows home PC: code and tooling in **WSL2**, the app served from **Docker Desktop**, opened from a phone on the home Wi-Fi. Full plan: `~/.claude/plans/i-want-to-spin-ethereal-island.md`.
 
 ## Status
-Phase 1 (repo hygiene) is done. Phases 2–6 are not started: data layer, UI, live Sheets mode, Docker, portfolio polish. Paths below marked *(planned)* do not exist yet.
+Done: Phase 1 (repo hygiene) and Phase 2 (data layer: config, sources, synthetic, transform, analytics, tests). Not started: Streamlit UI (`app/`), `charts.py`, `auth.py`, Docker, CI, portfolio polish. Paths marked *(planned)* do not exist yet.
+
+Pipeline: `build_source(mode, config, secrets).load_raw()` → `to_daily(raw, config)` → analytics functions. `to_daily` returns one row per calendar day indexed by `date`, columns = metric keys, NaN for missed days.
 
 ## Commands
 ```bash
@@ -18,9 +20,10 @@ docker compose up -d                      # (planned) phone-reachable "prod" run
 ```
 Add dependencies with `uv add` / `uv add --dev`, never by editing `uv.lock`.
 
-## Architecture *(planned)*
-- `src/pain_tracker/`: `config` (mode + metrics config), `sources` (`DataSource` protocol → `GSheetSource`, `CsvSource`, `SyntheticSource`), `synthetic`, `transform`, `analytics`, `charts`, `auth`.
-- `app/Home.py` + `app/pages/`: Trends, Calendar, Patterns, Data.
+## Architecture
+- `src/pain_tracker/` (built): `config` (mode + metrics config), `sources` (`DataSource` protocol → `GSheetSource`, `CsvSource`, `SyntheticSource`), `synthetic`, `transform`, `analytics`. *(planned)*: `charts`, `auth`.
+- *(planned)* `app/Home.py` + `app/pages/`: Trends, Calendar, Patterns, Data.
+- Tests live in `tests/` and use `config/metrics.example.toml` plus hand-written or synthetic frames only.
 - **Mode:** live if `secrets.toml` is present, otherwise demo (synthetic data). `DEMO_MODE=1` forces demo. Live mode sits behind a password gate; demo mode does not.
 - Keep logic in `src/` (testable, no Streamlit imports) and keep pages thin.
 

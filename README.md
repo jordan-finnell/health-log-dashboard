@@ -2,7 +2,18 @@
 
 A private, self-hosted Streamlit dashboard for tracking, trending and visualizing a personal daily health log. A Google Form feeds a Google Sheet; the app reads that sheet (read-only) and turns it into trends, calendar heatmaps and pattern analysis, viewable from a laptop or a phone on the home network.
 
-> **Status: in development.** The data layer is built and tested; the UI is next. See the roadmap below.
+> **Status: in development.** The data layer and the demo-mode UI work end to end. Live Google Sheets mode and Docker deployment come next. See the roadmap below.
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/overview.png" alt="Overview: a stat tile per metric with 7-day change and sparkline" width="220"></td>
+    <td><img src="docs/screenshots/trends.png" alt="Trends: three metrics overlaid on a shared 0-10 axis" width="220"></td>
+    <td><img src="docs/screenshots/calendar.png" alt="Calendar: weeks by weekday heatmap" width="220"></td>
+    <td><img src="docs/screenshots/patterns.png" alt="Patterns: correlation matrix, weekday profile, rating co-occurrence" width="220"></td>
+  </tr>
+</table>
+
+*Screenshots are taken in demo mode and show synthetic data only.*
 
 The repo is public, but the author's data is not in it. With no credentials configured the app runs in **demo mode** on synthetic data, so everything here can be tried without access to any real log.
 
@@ -32,7 +43,8 @@ Real-world logs are messy, and the transform layer handles it: several submissio
 - **Config-driven metrics:** column headers map to stable keys in `config/metrics.example.toml`, so renaming a survey question doesn't touch the code.
 - **Pluggable sources:** a `DataSource` interface with Google Sheets, CSV and synthetic implementations.
 - **Logic separate from UI:** analytics live in a plain Python package with tests. Streamlit pages stay thin.
-- **Mobile first:** layouts are designed for a phone screen.
+- **Mobile first:** layouts are designed for a phone screen. Charts disable drag-zoom so touch scrolling still works, and tapping shows a tooltip listing every series for that date.
+- **Honest charts:** one axis and a fixed 0–10 scale; a metric keeps the same colour whatever is selected; missing days are blank, never zero; every chart has a table view; colours are validated for colour-blind separation in both light and dark themes.
 
 ## Privacy and security
 - Access to the sheet uses a Google Cloud **service account** with the read-only Sheets scope, shared on that single sheet as Viewer. It can be revoked at any time by un-sharing.
@@ -49,7 +61,9 @@ git clone <this repo> && cd pain_tracker
 uv sync
 DEMO_MODE=1 uv run streamlit run app/Home.py
 ```
-Then open <http://localhost:8501>. *(Available once the UI phase lands.)*
+Then open <http://localhost:8501>. Every page works in demo mode with generated data; nothing connects to Google.
+
+Dark and light themes follow your browser/OS setting.
 
 ## Self-hosting on Windows (WSL + Docker Desktop) *(planned)*
 The author runs this on a Windows PC with the code in WSL2 and the app in Docker Desktop:
@@ -75,7 +89,7 @@ uv run pre-commit run --all-files    # lint + secret scan
 ## Roadmap
 - [x] Repo hygiene: gitignore, dockerignore, pre-commit with secret scanning
 - [x] Data layer: sources, transform, analytics, synthetic generator, tests
-- [ ] Streamlit UI in demo mode
-- [ ] Live Google Sheets mode with password gate
+- [x] Streamlit UI in demo mode (overview, trends, calendar, patterns, data)
+- [ ] Live Google Sheets mode with password gate (implemented and tested against a fake sheet; still to be verified with real credentials)
 - [ ] Docker Compose deployment for LAN/phone access
 - [ ] CI, screenshots, optional hosted demo

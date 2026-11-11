@@ -12,6 +12,56 @@ import pandas as pd
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
+def last_days[T: (pd.Series, pd.DataFrame)](data: T, days: int | None) -> T:
+    """The trailing ``days`` calendar days of a daily-indexed series/frame (None = all)."""
+    if days is None or len(data) == 0:
+        return data
+    if days < 1:
+        raise ValueError("days must be >= 1")
+    return data.loc[data.index.max() - pd.Timedelta(days=days - 1) :]
+
+
+def calendar_grid(series: pd.Series) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Lay a daily series out as weeks (rows, Monday-start) x weekdays (columns).
+
+    Returns ``(values, in_range)``: ``values`` holds the ratings (NaN = no entry) and
+    ``in_range`` marks cells that fall between the first and last day of the series, so
+    the partial first/last weeks don't draw phantom days.
+    """
+    if series.empty:
+        empty = pd.DataFrame(columns=WEEKDAYS, dtype="float64")
+        return empty, empty.astype(bool)
+
+    first, last = series.index.min(), series.index.max()
+    week0 = first - pd.Timedelta(days=first.day_of_week)
+    n_weeks = (last - week0).days // 7 + 1
+    days = pd.date_range(week0, periods=n_weeks * 7, freq="D")
+
+    index = pd.Index(days[::7], name="week")
+    values = pd.DataFrame(
+        series.reindex(days).to_numpy(dtype="float64").reshape(n_weeks, 7),
+        index=index,
+        columns=WEEKDAYS,
+    )
+    in_range = pd.DataFrame(
+        ((days >= first) & (days <= last)).reshape(n_weeks, 7), index=index, columns=WEEKDAYS
+    )
+    return values, in_range
+
+
+def pair_counts(df: pd.DataFrame, x: str, y: str, lo: int = 0, hi: int = 10) -> pd.DataFrame:
+    """Number of days each (x rating, y rating) combination occurred.
+
+    Rows are x values and columns are y values, both covering ``lo..hi``. Only days where
+    both metrics were recorded count.
+    """
+    both = df[[x, y]].dropna().round().astype(int)
+    scale = range(lo, hi + 1)
+    counts = pd.crosstab(both[x], both[y]).reindex(index=scale, columns=scale, fill_value=0)
+    counts.index.name, counts.columns.name = x, y
+    return counts
+
+
 def rolling_mean(series: pd.Series, window: int, min_periods: int | None = None) -> pd.Series:
     """Trailing mean over ``window`` calendar days, tolerant of missed days.
 

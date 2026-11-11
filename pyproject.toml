@@ -25,6 +25,7 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["app"]
 addopts = "-ra"
 
 [tool.ruff]
@@ -33,3 +34,6 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pain_tracker", "shared"]

@@ -5,7 +5,7 @@ Private Streamlit dashboard that tracks, trends and visualizes a personal daily 
 Single user. Runs on a Windows home PC: code and tooling in **WSL2**, the app served from **Docker Desktop**, opened from a phone on the home Wi-Fi. Full plan: `~/.claude/plans/i-want-to-spin-ethereal-island.md`.
 
 ## Status
-Done: Phase 1 (repo hygiene) and Phase 2 (data layer: config, sources, synthetic, transform, analytics, tests). Not started: Streamlit UI (`app/`), `charts.py`, `auth.py`, Docker, CI, portfolio polish. Paths marked *(planned)* do not exist yet.
+Done: Phase 1 (repo hygiene), Phase 2 (data layer) and Phase 3 (Streamlit UI in demo mode, charts, password gate; screenshots in `docs/screenshots/`). Live Sheets mode is implemented and tested against a fake sheet but has **not been run with real credentials**. Not started: Docker/compose (Phase 5), CI workflow, portfolio polish (Phase 6). Paths marked *(planned)* do not exist yet.
 
 Pipeline: `build_source(mode, config, secrets).load_raw()` → `to_daily(raw, config)` → analytics functions. `to_daily` returns one row per calendar day indexed by `date`, columns = metric keys, NaN for missed days.
 
@@ -15,14 +15,14 @@ uv sync                                   # install deps (uv manages Python 3.13
 uv run pytest                             # tests (run against synthetic data)
 uv run ruff check . && uv run ruff format .
 uv run pre-commit run --all-files         # ruff, gitleaks, hygiene hooks
-DEMO_MODE=1 uv run streamlit run app/Home.py   # (planned) dev server, then http://localhost:8501 in the Windows browser
+DEMO_MODE=1 uv run streamlit run app/Home.py   # dev server, then http://localhost:8501 in the Windows browser
 docker compose up -d                      # (planned) phone-reachable "prod" run, from the WSL shell
 ```
 Add dependencies with `uv add` / `uv add --dev`, never by editing `uv.lock`.
 
 ## Architecture
-- `src/pain_tracker/` (built): `config` (mode + metrics config), `sources` (`DataSource` protocol → `GSheetSource`, `CsvSource`, `SyntheticSource`), `synthetic`, `transform`, `analytics`. *(planned)*: `charts`, `auth`.
-- *(planned)* `app/Home.py` + `app/pages/`: Trends, Calendar, Patterns, Data.
+- `src/pain_tracker/`: `config` (mode + metrics config), `sources` (`DataSource` protocol → `GSheetSource`, `CsvSource`, `SyntheticSource`), `synthetic`, `transform`, `analytics`, `charts` (Plotly figure builders + light/dark `Theme` tokens), `auth` (`verify_password`). None import Streamlit.
+- `app/Home.py` + `app/pages/{1_Trends,2_Calendar,3_Patterns,4_Data}.py`: thin pages. `app/shared.py` holds `page_setup()` (config, mode, auth gate, sidebar), cached `load_daily()`, `range_filter()`, `show_chart()`, `table_view()`. Every page must call `shared.page_setup()` first and load data only after it returns, since that is what enforces the password gate.
 - Tests live in `tests/` and use `config/metrics.example.toml` plus hand-written or synthetic frames only.
 - **Mode:** live if `secrets.toml` is present, otherwise demo (synthetic data). `DEMO_MODE=1` forces demo. Live mode sits behind a password gate; demo mode does not.
 - Keep logic in `src/` (testable, no Streamlit imports) and keep pages thin.
@@ -66,5 +66,8 @@ Quirks `transform.py` must handle:
 - Default branch is **`trunk`**, not `master`/`main`.
 - Commits use the user's global git identity. Keep messages short and imperative; explain why in the body.
 - Python 3.13, type hints on public functions, ruff for lint and format.
-- Charts: use the `dataviz` skill. Design for a phone screen first (single column, short labels, `use_container_width`).
+- Charts: use the `dataviz` skill. Design for a phone screen first (single column, short labels, `width="stretch"`). Rules already encoded in `charts.py`: colour follows the metric (config order → categorical slot), one fixed 0–10 axis, no dual axes, missing is blank not zero, text never wears a series colour, colour scale placed above charts whose bottom edge has axis labels/titles. Add new metrics at the end of `metrics.example.toml` so existing colours don't shift.
+- Verify UI changes by looking at them: run the app, screenshot with Playwright at phone width (400px) in light and dark. Headless `google-chrome --screenshot` does not wait for Streamlit's websocket, so use Playwright (`executablePath: /usr/bin/google-chrome`) and wait for `[data-testid="stMain"] h1`.
+- `pkill -f` can match your own shell command line (exit 144). Kill the dev server in its own call with a pattern like `[s]treamlit.*8765`.
+- Tests: `tests/test_app_smoke.py` and `tests/test_app_live_gate.py` use Streamlit's `AppTest` to run every page headlessly (demo mode and live mode with a fake source).
 - GitHub: two accounts are logged into `gh`. Confirm `jordan-finnell` is the active one (`gh auth status`) before creating the repo, pushing, or opening PRs.

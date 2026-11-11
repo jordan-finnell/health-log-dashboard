@@ -15,7 +15,7 @@
       "Read(./data/**)"
     ],
     "deny": [
-      "Read(~/.config/pain-tracker/**)",
+      "Read(~/.config/health-log-dashboard/**)",
       "Read(**/secrets.toml)",
       "Read(./.env*)",
       "Read(**/*service*account*.json)",

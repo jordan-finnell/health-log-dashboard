@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pain_tracker import analytics
+from health_log_dashboard import analytics
 
 
 def series(values, start="2026-03-01"):

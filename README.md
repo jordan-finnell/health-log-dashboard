@@ -1,4 +1,4 @@
-# Pain Tracker
+# Health Log Dashboard
 
 A private, self-hosted Streamlit dashboard for tracking, trending and visualizing a personal daily health log. A Google Form feeds a Google Sheet; the app reads that sheet (read-only) and turns it into trends, calendar heatmaps and pattern analysis, viewable from a browser on the home network.
 
@@ -49,7 +49,7 @@ Real-world logs are messy, and the transform layer handles it: several submissio
 
 ## Privacy and security
 - Access to the sheet uses a Google Cloud **service account** with the read-only Sheets scope, shared on that single sheet as Viewer. It can be revoked at any time by un-sharing.
-- Credentials, the sheet ID and the app password live **outside the repository** in `~/.config/pain-tracker/secrets.toml` and are bind-mounted read-only into the container. They never enter the image or git history.
+- Credentials, the sheet ID and the app password live **outside the repository** in `~/.config/health-log-dashboard/secrets.toml` and are bind-mounted read-only into the container. They never enter the image or git history.
 - Live mode is behind a password gate. The server is reachable only on the home LAN: no port-forwarding, firewall rule for the Private network profile only.
 - Real data is fetched into memory and cached briefly. Local data and key files are gitignored and dockerignored.
 - Every commit is scanned for secrets with [gitleaks](https://github.com/gitleaks/gitleaks) via pre-commit, and again in CI.
@@ -58,7 +58,7 @@ Real-world logs are messy, and the transform layer handles it: several submissio
 Requires [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone <this repo> && cd pain_tracker
+git clone <this repo> && cd health-log-dashboard
 uv sync
 DEMO_MODE=1 uv run streamlit run app/Home.py
 ```
@@ -71,11 +71,11 @@ The author runs this on a Windows PC with the code in WSL2 and the app in Docker
 
 1. In Docker Desktop, enable Settings → Resources → WSL Integration for your distro, and "Start Docker Desktop when you sign in".
 2. Create a Google Cloud service account, enable the Sheets API, and share your sheet with the service account as Viewer.
-3. Save the key, sheet ID and an app password in `~/.config/pain-tracker/secrets.toml` (`chmod 600`). See `.streamlit/secrets.toml.example`.
+3. Save the key, sheet ID and an app password in `~/.config/health-log-dashboard/secrets.toml` (`chmod 600`). See `.streamlit/secrets.toml.example`.
 4. Copy `config/metrics.example.toml` to `config/metrics.toml` (gitignored) and edit it so each metric's `column` matches your sheet's header, with the label, scale and `higher_is_better` you want. Demo mode ignores this file and always uses `config/demo.toml`.
 5. From WSL: `docker compose up -d`.
 6. In an admin PowerShell, allow the port on private networks only:
-   `New-NetFirewallRule -DisplayName "Pain Tracker 8501" -Direction Inbound -Protocol TCP -LocalPort 8501 -Action Allow -Profile Private`
+   `New-NetFirewallRule -DisplayName "Health Log Dashboard 8501" -Direction Inbound -Protocol TCP -LocalPort 8501 -Action Allow -Profile Private`
 7. On your phone, open `http://<your PC's LAN IP>:8501`. Find the IP with `ipconfig` in Windows (not the address shown inside WSL), and give the PC a DHCP reservation so it stays stable.
 
 The PC must be awake and signed in for the app to be reachable.

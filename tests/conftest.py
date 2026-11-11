@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from pain_tracker.config import CONFIG_DIR, DEMO_METRICS_PATH, MetricsConfig, load_metrics
+from health_log_dashboard.config import CONFIG_DIR, DEMO_METRICS_PATH, MetricsConfig, load_metrics
 
 FIXED_END = date(2026, 1, 31)
 

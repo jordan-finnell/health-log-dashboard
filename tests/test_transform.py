@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pain_tracker.config import ConfigError
-from pain_tracker.transform import to_daily
+from health_log_dashboard.config import ConfigError
+from health_log_dashboard.transform import to_daily
 
 
 def raw_frame(rows):

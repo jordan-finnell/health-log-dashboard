@@ -3,7 +3,7 @@
 import streamlit as st
 
 import shared
-from pain_tracker import analytics
+from health_log_dashboard import analytics
 
 ctx = shared.page_setup("Data")
 daily = shared.load_daily(ctx)

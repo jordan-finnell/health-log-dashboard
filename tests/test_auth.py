@@ -1,4 +1,4 @@
-from pain_tracker.auth import verify_password
+from health_log_dashboard.auth import verify_password
 
 
 def test_correct_password():

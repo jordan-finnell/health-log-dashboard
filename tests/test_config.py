@@ -1,6 +1,6 @@
 import pytest
 
-from pain_tracker.config import (
+from health_log_dashboard.config import (
     CONFIG_DIR,
     ConfigError,
     Mode,
@@ -53,7 +53,7 @@ def test_bad_scale_rejected(tmp_path):
 
 
 def test_default_path_env_override_and_fallback(tmp_path):
-    assert default_metrics_path({"PAIN_TRACKER_METRICS": str(tmp_path / "x.toml")}) == (
+    assert default_metrics_path({"HEALTH_LOG_DASHBOARD_METRICS": str(tmp_path / "x.toml")}) == (
         tmp_path / "x.toml"
     )
     assert default_metrics_path({}).parent == CONFIG_DIR
@@ -99,6 +99,8 @@ def test_demo_schema_is_different_from_the_real_one(config, demo_config):
 def test_load_metrics_for_mode(config, demo_config):
     assert load_metrics_for(Mode.DEMO).keys == demo_config.keys
     # live mode follows the normal resolution (env override > metrics.toml > example)
-    live = load_metrics_for(Mode.LIVE, {"PAIN_TRACKER_METRICS": str(CONFIG_DIR / "demo.toml")})
+    live = load_metrics_for(
+        Mode.LIVE, {"HEALTH_LOG_DASHBOARD_METRICS": str(CONFIG_DIR / "demo.toml")}
+    )
     assert live.keys == demo_config.keys
     assert load_metrics_for(Mode.LIVE, {}).keys  # resolves to a real file

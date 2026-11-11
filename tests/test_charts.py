@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pain_tracker import analytics, charts
-from pain_tracker.synthetic import generate_raw
-from pain_tracker.transform import to_daily
+from health_log_dashboard import analytics, charts
+from health_log_dashboard.synthetic import generate_raw
+from health_log_dashboard.transform import to_daily
 
 from .conftest import FIXED_END
 

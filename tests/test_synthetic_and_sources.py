@@ -4,16 +4,16 @@ import types
 import pandas as pd
 import pytest
 
-from pain_tracker.config import ConfigError, Mode
-from pain_tracker.sources import (
+from health_log_dashboard.config import ConfigError, Mode
+from health_log_dashboard.sources import (
     SHEETS_READONLY_SCOPE,
     CsvSource,
     GSheetSource,
     SyntheticSource,
     build_source,
 )
-from pain_tracker.synthetic import generate_raw
-from pain_tracker.transform import to_daily
+from health_log_dashboard.synthetic import generate_raw
+from health_log_dashboard.transform import to_daily
 
 from .conftest import FIXED_END
 

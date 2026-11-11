@@ -5,12 +5,12 @@ import math
 import streamlit as st
 
 import shared
-from pain_tracker import analytics
+from health_log_dashboard import analytics
 
 ctx = shared.page_setup("Overview")
 daily = shared.load_daily(ctx)
 
-st.title("Pain Tracker")
+st.title("Health Log Dashboard")
 last = daily.index.max()
 st.caption(f"Last entry {last:%b} {last.day}, {last.year} · {len(daily)} days in the log")
 

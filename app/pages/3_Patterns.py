@@ -3,7 +3,7 @@
 import streamlit as st
 
 import shared
-from pain_tracker import analytics, charts
+from health_log_dashboard import analytics, charts
 
 MIN_DAYS = 14
 

@@ -9,19 +9,19 @@ from dataclasses import dataclass
 import pandas as pd
 import streamlit as st
 
-from pain_tracker.auth import verify_password
-from pain_tracker.charts import PLOT_CONFIG, Theme, theme_for
-from pain_tracker.config import (
+from health_log_dashboard.auth import verify_password
+from health_log_dashboard.charts import PLOT_CONFIG, Theme, theme_for
+from health_log_dashboard.config import (
     ConfigError,
     MetricsConfig,
     Mode,
     load_metrics_for,
     resolve_mode,
 )
-from pain_tracker.sources import build_source
-from pain_tracker.transform import to_daily
+from health_log_dashboard.sources import build_source
+from health_log_dashboard.transform import to_daily
 
-log = logging.getLogger("pain_tracker")
+log = logging.getLogger("health_log_dashboard")
 
 RANGES: dict[str, int | None] = {"7d": 7, "30d": 30, "90d": 90, "1y": 365, "All": None}
 CACHE_TTL_SECONDS = 600
@@ -64,7 +64,7 @@ def _gate(mode: Mode) -> None:
     """Live mode requires the app password before anything (including data) is loaded."""
     if mode is not Mode.LIVE or st.session_state.get("authed"):
         return
-    st.title("Pain Tracker")
+    st.title("Health Log Dashboard")
     with st.form("login"):
         password = st.text_input("Password", type="password")
         submitted = st.form_submit_button("Unlock", type="primary")
@@ -79,7 +79,7 @@ def _gate(mode: Mode) -> None:
 
 def page_setup(title: str, icon: str = ":material/monitor_heart:") -> Context:
     """Call first on every page. Handles config, mode, auth and the sidebar."""
-    st.set_page_config(page_title=f"{title} · Pain Tracker", page_icon=icon)
+    st.set_page_config(page_title=f"{title} · Health Log Dashboard", page_icon=icon)
     try:
         mode = resolve_mode(_secrets())
     except ConfigError as exc:

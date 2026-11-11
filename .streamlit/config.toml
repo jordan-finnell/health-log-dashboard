@@ -8,7 +8,7 @@ runOnSave = false
 [client]
 toolbarMode = "minimal"
 
-# Surface/ink values match the chart tokens in src/pain_tracker/charts.py so Plotly
+# Surface/ink values match the chart tokens in src/health_log_dashboard/charts.py so Plotly
 # figures (transparent background) sit on exactly the colour they were validated against.
 [theme]
 font = "sans-serif"

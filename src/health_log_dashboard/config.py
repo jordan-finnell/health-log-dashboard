@@ -14,7 +14,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = REPO_ROOT / "config"
-METRICS_ENV_VAR = "PAIN_TRACKER_METRICS"
+METRICS_ENV_VAR = "HEALTH_LOG_DASHBOARD_METRICS"
 # Demo mode always uses this generic schema, never the real log's.
 DEMO_METRICS_PATH = CONFIG_DIR / "demo.toml"
 

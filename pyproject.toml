@@ -1,5 +1,5 @@
 [project]
-name = "pain-tracker"
+name = "health-log-dashboard"
 version = "0.1.0"
 description = "Private Streamlit dashboard for tracking and visualizing a personal daily health log."
 readme = "README.md"
@@ -36,4 +36,4 @@ target-version = "py313"
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["pain_tracker", "shared"]
+known-first-party = ["health_log_dashboard", "shared"]

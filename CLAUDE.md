@@ -1,4 +1,4 @@
-# Pain Tracker
+# Health Log Dashboard
 
 Private Streamlit dashboard that tracks, trends and visualizes a personal daily health log (Google Form → Google Sheet). It is also a **public GitHub portfolio piece**, so the repo must never contain real health data, the sheet ID, or credentials.
 
@@ -21,7 +21,7 @@ docker compose up -d                      # (planned) phone-reachable "prod" run
 Add dependencies with `uv add` / `uv add --dev`, never by editing `uv.lock`.
 
 ## Architecture
-- `src/pain_tracker/`: `config` (mode + metrics config), `sources` (`DataSource` protocol → `GSheetSource`, `CsvSource`, `SyntheticSource`), `synthetic`, `transform`, `analytics`, `charts` (Plotly figure builders + light/dark `Theme` tokens), `auth` (`verify_password`). None import Streamlit.
+- `src/health_log_dashboard/`: `config` (mode + metrics config), `sources` (`DataSource` protocol → `GSheetSource`, `CsvSource`, `SyntheticSource`), `synthetic`, `transform`, `analytics`, `charts` (Plotly figure builders + light/dark `Theme` tokens), `auth` (`verify_password`). None import Streamlit.
 - `app/Home.py` + `app/pages/{1_Trends,2_Calendar,3_Patterns,4_Data}.py`: thin pages. `app/shared.py` holds `page_setup()` (config, mode, auth gate, sidebar), cached `load_daily()`, `range_filter()`, `show_chart()`, `table_view()`. Every page must call `shared.page_setup()` first and load data only after it returns, since that is what enforces the password gate.
 - **Two schemas, kept separate.** Demo mode (and the README screenshots) use the generic five-metric schema in `config/demo.toml` (Sleep Quality, Energy Level, Focus higher-is-better; Stress, Muscle Soreness lower-is-better). Live mode uses the real log's schema from `config/metrics.toml` if present, else `config/metrics.example.toml`. `config.load_metrics_for(mode)` picks the file; `shared._config(mode)` caches it. A test enforces that the demo schema shares no keys, columns or labels with the real one, and another that demo pages never show the real labels. Never hard-code metric keys in `src/` or `app/`; derive them from the loaded config.
 - Synthetic data: the last metric in the config is treated as a late survey addition (blank for the first half). Every metric has the shared burden signal (strong coupling) plus its own small slow drift, so metrics move together but can still diverge. `sources.DEMO_SEED` (19) is chosen so the overview shows both improving and worsening tiles; if you change the generator, re-check that mix (and regenerate `docs/screenshots/`).
@@ -52,7 +52,7 @@ Quirks `transform.py` must handle:
 ## Privacy rules (the repo is public)
 - **`data/` is real private health data**, even `data/sample/`. It is gitignored. Read it only to learn the schema or profile quirks. Never copy values from it into committed files, tests, fixtures, docs or screenshots, and never send it to an external service.
 - Tests, the README and screenshots use **synthetic data only** (`SyntheticSource`).
-- Secrets live outside the repo at `~/.config/pain-tracker/secrets.toml` (service-account key, `sheet_id`, `worksheet`, `app_password`). Do not read, print or log it. Never put the sheet ID or any key in code, docs, commit messages or CI config.
+- Secrets live outside the repo at `~/.config/health-log-dashboard/secrets.toml` (service-account key, `sheet_id`, `worksheet`, `app_password`). Do not read, print or log it. Never put the sheet ID or any key in code, docs, commit messages or CI config.
 - Column names are public (listed above). Everything else about the real log is not.
 - Every commit passes pre-commit (gitleaks + ruff). Never use `--no-verify`. Before the repo goes public, scan the full history with `gitleaks git`.
 - The service account is read-only (`spreadsheets.readonly`) on the one sheet. No write calls to Sheets.

@@ -7,7 +7,7 @@ from streamlit.proto.TextInput_pb2 import TextInput
 from streamlit.testing.v1 import AppTest
 
 import shared
-from pain_tracker.sources import SyntheticSource
+from health_log_dashboard.sources import SyntheticSource
 
 HOME = str(Path(__file__).resolve().parents[1] / "app" / "Home.py")
 SECRETS = {

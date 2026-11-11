@@ -1,6 +1,8 @@
 # Maps the Google Sheet's column headers to stable keys used by the code.
-# Copy to config/metrics.toml (gitignored) to override without touching git;
-# the loader prefers metrics.toml when it exists.
+# This is the schema live mode reads by default (the author's own log). Demo mode uses the
+# separate generic schema in config/demo.toml. To point live mode at a different sheet,
+# copy this file to config/metrics.toml (gitignored; preferred when it exists) and edit it.
+# Metric order is stable: it fixes each metric's chart colour.
 
 [timestamp]
 column = "Timestamp"

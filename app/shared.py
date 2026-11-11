@@ -11,7 +11,13 @@ import streamlit as st
 
 from pain_tracker.auth import verify_password
 from pain_tracker.charts import PLOT_CONFIG, Theme, theme_for
-from pain_tracker.config import ConfigError, MetricsConfig, Mode, load_metrics, resolve_mode
+from pain_tracker.config import (
+    ConfigError,
+    MetricsConfig,
+    Mode,
+    load_metrics_for,
+    resolve_mode,
+)
 from pain_tracker.sources import build_source
 from pain_tracker.transform import to_daily
 
@@ -41,8 +47,9 @@ def _secrets() -> dict:
 
 
 @st.cache_resource
-def _config() -> MetricsConfig:
-    return load_metrics()
+def _config(mode_value: str) -> MetricsConfig:
+    """Demo mode uses the generic demo schema; live mode uses the real log's mapping."""
+    return load_metrics_for(Mode(mode_value))
 
 
 def _theme() -> Theme:
@@ -90,12 +97,12 @@ def page_setup(title: str, icon: str = ":material/monitor_heart:") -> Context:
             width="stretch",
             help="Re-read the log now instead of waiting for the cache to expire.",
         )
-    return Context(config=_config(), mode=mode, theme=_theme())
+    return Context(config=_config(mode.value), mode=mode, theme=_theme())
 
 
 @st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Loading log…")
 def _load_daily(mode_value: str) -> pd.DataFrame:
-    config = _config()
+    config = _config(mode_value)
     mode = Mode(mode_value)
     source = build_source(mode, config, _secrets() if mode is Mode.LIVE else None)
     return to_daily(source.load_raw(), config)

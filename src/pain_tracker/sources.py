@@ -17,6 +17,11 @@ from .synthetic import generate_raw
 SHEETS_READONLY_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly"
 
 
+# Seed for the demo/README data. Chosen so the overview shows a mix of improving and
+# worsening metrics (direction-aware colouring) and clear correlations in the Patterns page.
+DEMO_SEED = 19
+
+
 class DataSource(Protocol):
     def load_raw(self) -> pd.DataFrame: ...
 
@@ -25,7 +30,7 @@ class DataSource(Protocol):
 class SyntheticSource:
     config: MetricsConfig
     days: int = 180
-    seed: int = 0
+    seed: int = DEMO_SEED
     end: date | None = None
 
     def load_raw(self) -> pd.DataFrame:

@@ -132,3 +132,26 @@ def test_gsheet_source_empty_sheet(monkeypatch):
 
 def test_readonly_scope_is_not_write_scope():
     assert SHEETS_READONLY_SCOPE.endswith("spreadsheets.readonly")
+
+
+def test_synthetic_works_for_the_demo_schema(demo_config):
+    raw = generate_raw(demo_config, days=150, end=FIXED_END, seed=5)
+    assert list(raw.columns) == [
+        demo_config.timestamp_column,
+        *(m.column for m in demo_config.metrics),
+    ]
+    last = demo_config.metrics[-1]
+    assert raw[last.column].iloc[:20].isna().all()  # last metric starts partway through
+    assert raw[demo_config.metrics[0].column].notna().all()
+    daily = to_daily(raw, demo_config)
+    for m in demo_config.metrics:
+        assert daily[m.key].dropna().between(m.min, m.max).all()
+
+
+def test_synthetic_demo_metrics_move_in_the_expected_directions(demo_config):
+    """Good scores fall when bad ones rise: the demo should look like a coherent person."""
+    daily = to_daily(generate_raw(demo_config, days=400, end=FIXED_END, seed=2), demo_config)
+    corr = daily.corr(method="spearman")
+    assert corr.loc["stress", "sleep_quality"] < -0.2
+    assert corr.loc["stress", "soreness"] > 0.2
+    assert corr.loc["energy", "focus"] > 0.2

@@ -1,0 +1,50 @@
+# Schema used by demo mode (synthetic data) and the README screenshots.
+# Deliberately different from the author's real log (see metrics.example.toml): five
+# generic wellbeing scores, three where higher is better and two where lower is better.
+#
+# Metric order is stable: it fixes each metric's chart colour, and the LAST metric is
+# treated as a late addition to the survey (blank for the first half of the demo log) to
+# show how missing data is handled.
+
+[timestamp]
+column = "Timestamp"
+
+[[metrics]]
+key = "sleep_quality"
+column = "Sleep Quality"
+label = "Sleep quality"
+min = 0
+max = 10
+higher_is_better = true
+
+[[metrics]]
+key = "energy"
+column = "Energy Level"
+label = "Energy"
+min = 0
+max = 10
+higher_is_better = true
+
+[[metrics]]
+key = "focus"
+column = "Focus"
+label = "Focus"
+min = 0
+max = 10
+higher_is_better = true
+
+[[metrics]]
+key = "stress"
+column = "Stress"
+label = "Stress"
+min = 0
+max = 10
+higher_is_better = false
+
+[[metrics]]
+key = "soreness"
+column = "Muscle Soreness"
+label = "Muscle soreness"
+min = 0
+max = 10
+higher_is_better = false

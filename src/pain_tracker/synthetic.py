@@ -16,8 +16,6 @@ import pandas as pd
 
 from .config import MetricsConfig
 
-DEFAULT_LATE_START: Mapping[str, float] = {"neck_pain": 0.5}
-
 
 def generate_raw(
     config: MetricsConfig,
@@ -32,11 +30,13 @@ def generate_raw(
     """Return a raw, sheet-shaped DataFrame covering ``days`` days ending on ``end``.
 
     ``late_start`` maps metric key -> fraction of the log before which it is blank,
-    mimicking a question added to the survey part-way through.
+    mimicking a question added to the survey part-way through. By default that is the
+    last metric in the config, blank for the first half.
     """
     if days < 1:
         raise ValueError("days must be >= 1")
-    late_start = DEFAULT_LATE_START if late_start is None else late_start
+    if late_start is None:  # by default the last metric is a late survey addition
+        late_start = {config.metrics[-1].key: 0.5}
     rng = np.random.default_rng(seed)
     end_ts = pd.Timestamp(end or date.today()).normalize()
     dates = pd.date_range(end=end_ts, periods=days, freq="D")
@@ -49,9 +49,11 @@ def generate_raw(
         span = metric.max - metric.min
         sign = -1.0 if metric.higher_is_better else 1.0
         base_frac = rng.uniform(0.55, 0.7) if metric.higher_is_better else rng.uniform(0.2, 0.4)
-        loading = rng.uniform(0.5, 1.0)
+        loading = rng.uniform(0.8, 1.3)
         noise = rng.normal(0, 0.7, size=days)
-        values = metric.min + span * base_frac + sign * (loading * burden + weekly) + noise
+        # Each metric also drifts on its own, so they can diverge instead of all moving together.
+        drift = _ar1(rng, days, phi=0.9, sd=0.25)
+        values = metric.min + span * base_frac + sign * (loading * burden + weekly) + drift + noise
         values = np.clip(np.rint(values), metric.min, metric.max) + 0.0  # +0.0 normalises -0.0
         frac = late_start.get(metric.key, 0.0)
         values[: int(frac * days)] = np.nan
@@ -77,6 +79,16 @@ def generate_raw(
             rows.append({config.timestamp_column: ts, **values})
 
     return pd.DataFrame(rows, columns=[config.timestamp_column, *columns])
+
+
+def _ar1(rng: np.random.Generator, n: int, *, phi: float, sd: float) -> np.ndarray:
+    """A slowly wandering zero-mean series."""
+    out = np.empty(n)
+    x = 0.0
+    for i in range(n):
+        x = phi * x + rng.normal(0, sd)
+        out[i] = x
+    return out
 
 
 def _latent_burden(rng: np.random.Generator, n: int) -> np.ndarray:

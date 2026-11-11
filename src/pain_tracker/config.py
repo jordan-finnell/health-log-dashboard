@@ -15,6 +15,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = REPO_ROOT / "config"
 METRICS_ENV_VAR = "PAIN_TRACKER_METRICS"
+# Demo mode always uses this generic schema, never the real log's.
+DEMO_METRICS_PATH = CONFIG_DIR / "demo.toml"
 
 # Keys that must all be present in secrets.toml for live mode.
 REQUIRED_SECRET_KEYS = ("gcp_service_account", "sheet_id", "worksheet", "app_password")
@@ -63,6 +65,13 @@ def default_metrics_path(environ: Mapping[str, str] | None = None) -> Path:
         return Path(override)
     private = CONFIG_DIR / "metrics.toml"
     return private if private.exists() else CONFIG_DIR / "metrics.example.toml"
+
+
+def load_metrics_for(mode: Mode, environ: Mapping[str, str] | None = None) -> MetricsConfig:
+    """Demo mode gets the generic demo schema; live mode gets the real log's mapping."""
+    if mode is Mode.DEMO:
+        return load_metrics(DEMO_METRICS_PATH)
+    return load_metrics(default_metrics_path(environ))
 
 
 def load_metrics(path: Path | str | None = None) -> MetricsConfig:

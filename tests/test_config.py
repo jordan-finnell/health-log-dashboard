@@ -6,6 +6,7 @@ from pain_tracker.config import (
     Mode,
     default_metrics_path,
     load_metrics,
+    load_metrics_for,
     resolve_mode,
 )
 
@@ -76,3 +77,28 @@ def test_partial_secrets_is_an_error_not_silent_demo():
     partial = {k: v for k, v in FULL_SECRETS.items() if k != "app_password"}
     with pytest.raises(ConfigError, match="app_password"):
         resolve_mode(partial, {})
+
+
+def test_demo_schema_has_five_metrics_with_both_directions(demo_config):
+    assert len(demo_config.metrics) == 5
+    better_high = [m for m in demo_config.metrics if m.higher_is_better]
+    better_low = [m for m in demo_config.metrics if not m.higher_is_better]
+    assert len(better_high) >= 2 and len(better_low) >= 2
+
+
+def test_demo_schema_is_different_from_the_real_one(config, demo_config):
+    """The public demo must not reuse the author's real metric names or column headers."""
+    assert not set(demo_config.keys) & set(config.keys)
+    real_columns = {m.column.lower() for m in config.metrics}
+    assert not {m.column.lower() for m in demo_config.metrics} & real_columns
+    assert not {m.label.lower() for m in demo_config.metrics} & {
+        m.label.lower() for m in config.metrics
+    }
+
+
+def test_load_metrics_for_mode(config, demo_config):
+    assert load_metrics_for(Mode.DEMO).keys == demo_config.keys
+    # live mode follows the normal resolution (env override > metrics.toml > example)
+    live = load_metrics_for(Mode.LIVE, {"PAIN_TRACKER_METRICS": str(CONFIG_DIR / "demo.toml")})
+    assert live.keys == demo_config.keys
+    assert load_metrics_for(Mode.LIVE, {}).keys  # resolves to a real file

@@ -40,7 +40,7 @@ One row per form submission. Headers are exactly:
 | `Excitement` | `excitement` | int | **higher is better** |
 | `Neck Pain` | `neck_pain` | float | added mid-log, so blank for all earlier rows. Must be treated as missing, never as 0. |
 
-Scale: observed values are 0–9, assumed to be a 0–10 scale. **Confirm with the user** before hard-coding the range.
+Scale: every metric is rated 0–10 (confirmed by the user). Values outside that range are treated as missing.
 
 Quirks `transform.py` must handle:
 - More than one submission on the same day (keep the latest) and days with no submission (reindex to the full calendar, leave NaN, do not interpolate silently).

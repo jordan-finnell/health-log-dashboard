@@ -6,7 +6,7 @@
 column = "Timestamp"
 
 # min/max define the valid rating scale; values outside it are treated as missing.
-# NOTE: the scale is assumed to be 0-10 -- adjust if the survey differs.
+# The survey uses a 0-10 scale for every metric.
 # higher_is_better drives chart colours and "improving / worsening" wording.
 
 [[metrics]]

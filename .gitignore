@@ -1,0 +1,41 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# --- Secrets & private data: NEVER commit ---
+secrets.toml
+!secrets.toml.example
+.env
+.env.*
+*.pem
+*.key
+# Service-account / OAuth key files
+*service*account*.json
+client_secret*.json
+credentials*.json
+*.json.key
+
+# Real health data and local caches
+data/
+*.csv
+*.parquet
+*.sqlite
+*.db
+
+# Real survey column mapping (example file is committed)
+config/metrics.toml
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+.DS_Store

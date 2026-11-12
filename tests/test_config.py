@@ -7,6 +7,7 @@ from health_log_dashboard.config import (
     default_metrics_path,
     load_metrics,
     load_metrics_for,
+    password_enabled,
     resolve_mode,
 )
 
@@ -74,9 +75,28 @@ def test_demo_mode_env_forces_demo_even_with_secrets():
 
 
 def test_partial_secrets_is_an_error_not_silent_demo():
-    partial = {k: v for k, v in FULL_SECRETS.items() if k != "app_password"}
-    with pytest.raises(ConfigError, match="app_password"):
+    partial = {k: v for k, v in FULL_SECRETS.items() if k != "sheet_id"}
+    with pytest.raises(ConfigError, match="sheet_id"):
         resolve_mode(partial, {})
+
+
+def test_password_is_optional_for_live_mode():
+    no_password = {k: v for k, v in FULL_SECRETS.items() if k != "app_password"}
+    assert resolve_mode(no_password, {}) is Mode.LIVE
+    assert password_enabled(no_password) is False
+    assert password_enabled(FULL_SECRETS) is True
+
+
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_blank_password_is_an_error_not_an_open_door(blank):
+    """A mistyped/empty value must not quietly disable the gate; removing the key does that."""
+    with pytest.raises(ConfigError, match="app_password"):
+        resolve_mode({**FULL_SECRETS, "app_password": blank}, {})
+    assert password_enabled({"app_password": blank}) is False
+
+
+def test_password_alone_does_not_make_live_mode():
+    assert resolve_mode({"app_password": "pw"}, {}) is Mode.DEMO
 
 
 def test_demo_schema_has_five_metrics_with_both_directions(demo_config):

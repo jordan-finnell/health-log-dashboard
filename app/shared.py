@@ -16,6 +16,7 @@ from health_log_dashboard.config import (
     MetricsConfig,
     Mode,
     load_metrics_for,
+    password_enabled,
     resolve_mode,
 )
 from health_log_dashboard.sources import build_source
@@ -61,8 +62,8 @@ def _theme() -> Theme:
 
 
 def _gate(mode: Mode) -> None:
-    """Live mode requires the app password before anything (including data) is loaded."""
-    if mode is not Mode.LIVE or st.session_state.get("authed"):
+    """If a password is configured, require it before anything (including data) is loaded."""
+    if mode is not Mode.LIVE or not password_enabled(_secrets()) or st.session_state.get("authed"):
         return
     st.title("Health Log Dashboard")
     with st.form("login"):
@@ -90,6 +91,12 @@ def page_setup(title: str, icon: str = ":material/monitor_heart:") -> Context:
     with st.sidebar:
         if mode is Mode.DEMO:
             st.info("Demo mode: synthetic data only.", icon=":material/science:")
+        elif not password_enabled(_secrets()):
+            # Make it obvious if the gate is off, e.g. because a key name was mistyped.
+            st.warning(
+                "No password set: anyone who can reach this page can see the log.",
+                icon=":material/lock_open:",
+            )
         st.button(
             "Refresh data",
             icon=":material/refresh:",

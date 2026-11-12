@@ -19,7 +19,9 @@ METRICS_ENV_VAR = "HEALTH_LOG_DASHBOARD_METRICS"
 DEMO_METRICS_PATH = CONFIG_DIR / "demo.toml"
 
 # Keys that must all be present in secrets.toml for live mode.
-REQUIRED_SECRET_KEYS = ("gcp_service_account", "sheet_id", "worksheet", "app_password")
+REQUIRED_SECRET_KEYS = ("gcp_service_account", "sheet_id", "worksheet")
+# Optional: when present (and non-blank) the dashboard asks for it before showing anything.
+PASSWORD_KEY = "app_password"
 
 
 class ConfigError(ValueError):
@@ -110,7 +112,7 @@ def resolve_mode(
     secrets: Mapping[str, object] | None = None,
     environ: Mapping[str, str] | None = None,
 ) -> Mode:
-    """Live if every required secret is present; demo otherwise.
+    """Live if every required secret is present; demo otherwise. ``app_password`` is optional.
 
     ``DEMO_MODE=1`` forces demo. A *partially* filled secrets file is an error rather
     than a silent fallback, so a typo can't quietly put the app into demo mode.
@@ -125,4 +127,12 @@ def resolve_mode(
     missing = [k for k in REQUIRED_SECRET_KEYS if k not in present]
     if missing:
         raise ConfigError(f"secrets are incomplete; missing: {', '.join(missing)}")
+    # A blank password must not silently turn the gate off: remove the key to do that.
+    if PASSWORD_KEY in secrets and not str(secrets[PASSWORD_KEY]).strip():
+        raise ConfigError(f"{PASSWORD_KEY} is set but empty; remove it to disable the password")
     return Mode.LIVE
+
+
+def password_enabled(secrets: Mapping[str, object] | None) -> bool:
+    """Whether live mode should ask for a password (an ``app_password`` secret is set)."""
+    return bool(secrets and str(secrets.get(PASSWORD_KEY, "")).strip())

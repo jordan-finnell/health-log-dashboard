@@ -85,8 +85,32 @@ def test_gate_applies_to_every_page(live):
 
 
 def test_partial_secrets_refuse_to_start(live):
-    partial = {k: v for k, v in SECRETS.items() if k != "app_password"}
+    partial = {k: v for k, v in SECRETS.items() if k != "sheet_id"}
     at = live(partial).run()
+    assert any("sheet_id" in e.value for e in at.error)
+    assert len(at.metric) == 0
+    assert live.loads == []
+
+
+NO_PASSWORD = {k: v for k, v in SECRETS.items() if k != "app_password"}
+
+
+def test_without_a_password_the_dashboard_opens_directly_and_says_so(live):
+    at = live(NO_PASSWORD).run()
+    assert not at.exception
+    assert len(at.text_input) == 0  # no login form
+    assert len(at.metric) >= 6  # data is shown immediately
+    assert live.loads  # the real source was used (live mode), not demo data
+    assert any("No password set" in w.value for w in at.sidebar.warning)
+
+
+def test_blank_password_refuses_to_start_instead_of_opening(live):
+    at = live({**SECRETS, "app_password": ""}).run()
     assert any("app_password" in e.value for e in at.error)
     assert len(at.metric) == 0
     assert live.loads == []
+
+
+def test_with_a_password_there_is_no_open_warning(live):
+    at = live().run()
+    assert not at.sidebar.warning

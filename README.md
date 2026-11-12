@@ -24,7 +24,7 @@ The repo is public, but the author's data is not in it. With no credentials conf
 - **Trends:** each metric over time with a rolling average whose window (1–30 days) you set with a slider
 - **Calendar:** GitHub-style heatmap per metric, plus logging streaks
 - **Patterns:** correlations between metrics, and a by-weekday view showing every day's rating with the average and middle half, so you see the spread and not just the mean
-- **Data:** filterable table of the underlying log (live mode only, behind a password)
+- **Data:** filterable table of the underlying log (live mode only; behind the password when one is set)
 
 ## Data model
 One row per form submission, with a timestamp and a handful of daily 0–10 scores. The metrics are configuration, not code. The demo (and the screenshots above) use five generic wellbeing scores, three where higher is better and two where lower is better:
@@ -52,7 +52,7 @@ Real-world logs are messy, and the transform layer handles it: late-night loggin
 ## Privacy and security
 - Access to the sheet uses a Google Cloud **service account** with the read-only Sheets scope, shared on that single sheet as Viewer. It can be revoked at any time by un-sharing.
 - Credentials, the sheet ID and the app password live **outside the repository** in `~/.config/health-log-dashboard/secrets.toml` and are bind-mounted read-only into the container. They never enter the image or git history.
-- Live mode is behind a password gate. The server is reachable only on the home LAN: no port-forwarding, firewall rule for the Private network profile only.
+- Live mode has an **optional password gate**: set `app_password` and the dashboard asks for it before loading any data; leave it out and the dashboard opens directly, with a sidebar warning. The password only keeps other people on the same network out, so rely on the network boundary: the server is reachable only on the home LAN, with no port-forwarding and a firewall rule for the Private network profile only. If you ever expose it beyond the LAN, set a password.
 - Real data is fetched into memory and cached briefly. Local data and key files are gitignored and dockerignored.
 - Every commit is scanned for secrets with [gitleaks](https://github.com/gitleaks/gitleaks) via pre-commit, and again in CI.
 
@@ -73,7 +73,7 @@ The author runs this on a Windows PC with the code in WSL2 and the app in Docker
 
 1. In Docker Desktop, enable Settings → Resources → WSL Integration for your distro, and "Start Docker Desktop when you sign in".
 2. Create a Google Cloud service account, enable the Sheets API, and share your sheet with the service account as Viewer.
-3. Save the key, sheet ID and an app password in `~/.config/health-log-dashboard/secrets.toml` (`chmod 600`). See `.streamlit/secrets.toml.example`.
+3. Save the key, sheet ID and (optionally) an app password in `~/.config/health-log-dashboard/secrets.toml` (`chmod 600`). See `.streamlit/secrets.toml.example`.
 4. *(Optional)* If your sheet's headers differ from `config/metrics.example.toml`, copy it to `config/metrics.toml` (gitignored) and edit each metric's `column`, label, scale and `higher_is_better`. Then mount it by creating a gitignored `compose.override.yaml` next to `compose.yaml`:
    ```yaml
    services:
@@ -100,7 +100,7 @@ uv run pre-commit run --all-files    # lint + secret scan
 - [x] Repo hygiene: gitignore, dockerignore, pre-commit with secret scanning
 - [x] Data layer: sources, transform, analytics, synthetic generator, tests
 - [x] Streamlit UI in demo mode (overview, trends, calendar, patterns, data)
-- [x] Live Google Sheets mode with password gate
+- [x] Live Google Sheets mode with an optional password gate
 - [x] Docker Compose deployment for LAN/phone access
 - [x] CI (lint, tests, secret scan, image build) and demo screenshots
 - [ ] Optional hosted demo

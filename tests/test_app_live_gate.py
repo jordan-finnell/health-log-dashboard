@@ -9,6 +9,10 @@ from streamlit.testing.v1 import AppTest
 import shared
 from health_log_dashboard.sources import SyntheticSource
 
+# Generous: the first app run in a process imports streamlit, pandas and plotly, which is slow on
+# a cold CI runner (a 30 s limit failed intermittently there).
+APP_TIMEOUT = 120
+
 HOME = str(Path(__file__).resolve().parents[1] / "app" / "Home.py")
 SECRETS = {
     "app_password": "s3cret-pw",
@@ -33,7 +37,7 @@ def live(monkeypatch):
     shared._load_daily.clear()
 
     def make(secrets=SECRETS):
-        at = AppTest.from_file(HOME, default_timeout=30)
+        at = AppTest.from_file(HOME, default_timeout=APP_TIMEOUT)
         for key, value in secrets.items():
             at.secrets[key] = value
         return at
@@ -72,7 +76,7 @@ def test_correct_password_unlocks_the_dashboard(live):
 
 def test_gate_applies_to_every_page(live):
     page = str(Path(HOME).parent / "pages" / "4_Data.py")
-    at = AppTest.from_file(page, default_timeout=30)
+    at = AppTest.from_file(page, default_timeout=APP_TIMEOUT)
     for key, value in SECRETS.items():
         at.secrets[key] = value
     at.run()

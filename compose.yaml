@@ -23,7 +23,6 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-      - /home/app
     cap_drop:
       - ALL
     security_opt:

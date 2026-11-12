@@ -373,15 +373,14 @@ def overlay_chart(
     """Several metrics' rolling averages (``window`` days) on one shared 0-10 axis.
 
     Colours come from each metric's position in ``all_metrics``, so they never change as
-    the selection changes. Up to four series are also labelled at the line end (in text ink,
-    skipping labels that would collide); the legend is always shown.
+    the selection changes. The legend names the series; there are no labels at the line ends,
+    which would take horizontal space a phone screen cannot spare.
     """
     order = {m.key: i for i, m in enumerate(all_metrics)}
     lo = min(m.min for m in selected)
     hi = max(m.max for m in selected)
 
     fig = go.Figure()
-    ends: list[tuple[float, pd.Timestamp, str]] = []
     extent: list[pd.Timestamp] = []
     for m in selected:
         color = theme.color(order[m.key])
@@ -400,33 +399,14 @@ def overlay_chart(
         )
         if (dot := _end_dot(avg, color, theme)) is not None:
             fig.add_trace(dot)
-            valid = avg.dropna()
-            ends.append((float(valid.iloc[-1]), valid.index[-1], m.label))
 
-    label_ends = len(selected) <= 4
-    if label_ends:
-        placed: list[float] = []
-        for y, x, label in sorted(ends, reverse=True):
-            if any(abs(y - p) < 0.7 for p in placed):
-                continue  # would collide; the legend and tooltip carry this one
-            placed.append(y)
-            fig.add_annotation(
-                x=x,
-                y=y,
-                text=label,
-                showarrow=False,
-                xanchor="left",
-                xshift=10,
-                font=dict(color=theme.text_secondary, size=11),
-            )
-
-    margin = dict(l=34, r=96 if label_ends else 12, t=36, b=32)
+    margin = dict(l=34, r=12, t=36, b=32)
     fig.update_layout(
         **_layout(theme, height=height, legend=len(selected) >= 2, margin=margin),
         hovermode="x unified",
     )
     _style_time_axes(fig, theme, (lo, hi))
-    if extent:  # pin to the data so end labels sit in the margin instead of stretching the axis
+    if extent:  # pin to the data (plus a day, so the end dots aren't clipped)
         fig.update_xaxes(range=[min(extent), max(extent) + pd.Timedelta(days=1)])
     return fig
 

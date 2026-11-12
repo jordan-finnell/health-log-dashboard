@@ -101,17 +101,13 @@ def test_trend_chart_uses_the_same_colour_as_overlay(daily, config):
     assert trace_color(single, "7-day avg") == trace_color(overlay, "Depression")
 
 
-def test_end_labels_only_for_four_or_fewer_series(daily, config):
-    few = charts.overlay_chart(daily, config.metrics[:3], config.metrics, charts.LIGHT)
-    many = charts.overlay_chart(daily, config.metrics, config.metrics, charts.LIGHT)
-    assert len(few.layout.annotations) >= 1
-    assert len(many.layout.annotations) == 0
-
-
-def test_end_labels_use_text_ink_not_series_colour(daily, config):
-    fig = charts.overlay_chart(daily, config.metrics[:2], config.metrics, charts.LIGHT)
-    for ann in fig.layout.annotations:
-        assert ann.font.color == charts.LIGHT.text_secondary
+def test_overlay_has_no_line_end_labels_and_keeps_the_legend(daily, config):
+    """The legend names the series; end labels were dropped to save phone screen width."""
+    for n in (2, 3, len(config.metrics)):
+        fig = charts.overlay_chart(daily, config.metrics[:n], config.metrics, charts.LIGHT)
+        assert len(fig.layout.annotations) == 0
+        assert fig.layout.showlegend is True
+        assert fig.layout.margin.r <= 16
 
 
 def test_charts_handle_a_metric_with_no_data(config):

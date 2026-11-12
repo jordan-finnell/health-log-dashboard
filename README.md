@@ -38,7 +38,7 @@ One row per form submission, with a timestamp and a handful of daily 0–10 scor
 
 The direction matters: the app colours a change as "good" or "bad" using each metric's own better-when flag, so a rising Stress score and a falling Sleep Quality score both read as worsening.
 
-Real-world logs are messy, and the transform layer handles it: several submissions on one day, skipped days, mixed timestamp formats, and a metric that starts partway through the log. Missing values stay missing rather than being treated as zero.
+Real-world logs are messy, and the transform layer handles it: late-night logging (a submission before noon counts for the previous day), several submissions on one day, skipped days, mixed timestamp formats, and a metric that starts partway through the log. Missing values stay missing rather than being treated as zero.
 
 ## Design
 - **Config-driven metrics:** column headers map to stable keys, labels, scales and a better-when direction in TOML (`config/demo.toml` for the demo, `config/metrics.example.toml` for a real sheet), so changing or renaming a survey question never touches the code.

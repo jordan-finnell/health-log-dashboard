@@ -45,6 +45,7 @@ One row per form submission. Headers are exactly:
 Scale: every metric is rated 0–10 (confirmed by the user). Values outside that range are treated as missing.
 
 Quirks `transform.py` must handle:
+- **Day rollover:** the user sometimes logs after midnight for the day that just ended, so a submission before noon (`transform.DAY_ROLLOVER_HOUR = 12`) belongs to the *previous* day. Date-only rows are never shifted. Synthetic data includes after-midnight second submissions to exercise this; hand-written test timestamps should be afternoon/evening so they stay on their own day.
 - More than one submission on the same day (keep the latest) and days with no submission (reindex to the full calendar, leave NaN, do not interpolate silently).
 - Column headers contain spaces and a slash. Map them to the snake_case keys above via `config/metrics.example.toml` rather than scattering header strings through the code.
 - Rows are chronological in the sheet, but do not rely on it. Sort after parsing.

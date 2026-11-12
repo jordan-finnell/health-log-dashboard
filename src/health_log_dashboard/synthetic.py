@@ -69,8 +69,10 @@ def generate_raw(
             values = {col: vals[i] for col, vals in columns.items()}
             if n == 1:  # a second, slightly different submission later the same day
                 values = {c: _jitter(v, rng) for c, v in values.items()}
+            # Evening log (18-23h); the occasional second one lands after midnight (0-7h the next
+            # calendar day), which to_daily's rollover assigns back to the same day.
             stamp = day + pd.Timedelta(
-                hours=int(rng.integers(8 + 6 * n, 14 + 8 * n)),
+                hours=int(rng.integers(8 + 6 * n, 14 + 8 * n)) + 10,
                 minutes=int(rng.integers(0, 60)),
                 seconds=int(rng.integers(0, 60)),
             )

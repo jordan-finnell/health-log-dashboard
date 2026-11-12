@@ -32,6 +32,9 @@ def test_synthetic_has_sheet_shape_and_quirks(config):
     ts = raw[config.timestamp_column]
     assert ":" not in ts.iloc[0]  # first row is date-only
     assert ts.iloc[1:].str.contains(":").all()
+    # evening logs, plus some after-midnight ones that the rollover assigns to the day before
+    hours = pd.to_datetime(ts.iloc[1:], format="mixed").dt.hour
+    assert (hours >= 18).any() and (hours < 12).any()
     # late-starting metric is blank for the first half
     assert raw["Neck Pain"].iloc[:20].isna().all()
     assert raw["Neck Pain"].iloc[-20:].notna().any()

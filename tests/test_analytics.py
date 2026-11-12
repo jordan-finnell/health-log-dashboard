@@ -98,18 +98,27 @@ class TestCorrelation:
         assert math.isnan(corr.loc["a", "b"])
 
 
-class TestDayOfWeek:
-    def test_orders_mon_to_sun_and_averages(self):
-        # 2026-03-02 is a Monday; two full weeks where weekday index == value
-        df = frame({"a": [0, 1, 2, 3, 4, 5, 6] * 2}, start="2026-03-02")
-        prof = analytics.day_of_week_profile(df)
-        assert list(prof.index) == analytics.WEEKDAYS
-        assert prof["a"].tolist() == [0, 1, 2, 3, 4, 5, 6]
+class TestWeekdaySummary:
+    def test_orders_mon_to_sun_with_distribution(self):
+        # 2026-03-02 is a Monday; two weeks, so each weekday has two values (w, w + 10)
+        values = [w + 10 * week for week in range(2) for w in range(7)]
+        out = analytics.weekday_summary(frame({"a": values}, start="2026-03-02")["a"])
+        assert list(out.index) == analytics.WEEKDAYS
+        assert out["n"].tolist() == [2] * 7
+        assert out["mean"].tolist() == [w + 5 for w in range(7)]
+        assert out.loc["Mon", ["min", "max", "median"]].tolist() == [0, 10, 5]
+        assert out.loc["Mon", ["q25", "q75"]].tolist() == [2.5, 7.5]
 
-    def test_missing_weekday_is_nan(self):
-        df = frame({"a": [1.0, 2.0]}, start="2026-03-02")  # only Mon, Tue
-        prof = analytics.day_of_week_profile(df)
-        assert math.isnan(prof.loc["Sun", "a"])
+    def test_missing_weekday_has_zero_n_and_nan_stats(self):
+        out = analytics.weekday_summary(frame({"a": [1.0, 2.0]}, start="2026-03-02")["a"])
+        assert out.loc["Sun", "n"] == 0
+        assert math.isnan(out.loc["Sun", "mean"])
+        assert out.loc["Tue", "n"] == 1
+
+    def test_nan_days_are_ignored(self):
+        series = frame({"a": [4.0, np.nan] + [np.nan] * 5 + [6.0]}, start="2026-03-02")["a"]
+        out = analytics.weekday_summary(series)
+        assert out.loc["Mon", "n"] == 2 and out.loc["Mon", "mean"] == 5
 
 
 class TestStreak:

@@ -578,36 +578,95 @@ def correlation_chart(corr: pd.DataFrame, metrics: Sequence[Metric], theme: Them
     return fig
 
 
+_GOLDEN = 0.6180339887
+
+
+def _jitter(dates: pd.DatetimeIndex, spread: float = 0.5) -> np.ndarray:
+    """Deterministic sideways offsets in ``[-spread/2, spread/2)``.
+
+    Derived from each date, so a point never moves when the range or metric changes and the
+    chart does not shimmer on rerun.
+    """
+    ordinals = np.array([d.toordinal() for d in dates], dtype=float)
+    return ((ordinals * _GOLDEN) % 1.0 - 0.5) * spread
+
+
 def weekday_chart(
-    profile: pd.DataFrame, metric: Metric, theme: Theme, color_index: int, *, height: int = 280
+    series: pd.Series, metric: Metric, theme: Theme, color_index: int, *, height: int = 300
 ) -> go.Figure:
-    """Mean rating by weekday: one hue, thin bars, value at the tip."""
-    values = profile[metric.key]
-    fig = go.Figure(
-        go.Bar(
-            x=list(values.index),
+    """Every day's rating by weekday, with the middle half of days and the mean on top.
+
+    Faint jittered dots show the raw spread (ratings are whole numbers, so they would
+    otherwise stack); a thick line spans the 25th-75th percentile; the ringed marker is the mean.
+    """
+    color = theme.color(color_index)
+    values = series.dropna()
+    summary = analytics.weekday_summary(series)
+    have = summary[summary["n"] > 0]
+    pos = {name: i for i, name in enumerate(analytics.WEEKDAYS)}
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=values.index.day_of_week.to_numpy() + _jitter(values.index),
             y=values.to_numpy(),
-            width=0.4,
-            marker=dict(color=theme.color(color_index), cornerradius=4),
-            text=[("" if pd.isna(v) else f"{v:.1f}") for v in values],
-            textposition="outside",
-            textfont=dict(color=theme.text, size=12),
-            cliponaxis=False,
-            hovertemplate="%{x}: <b>%{y:.1f}</b> average<extra></extra>",
+            mode="markers",
+            name="Each day",
+            marker=dict(size=6, color=color, opacity=0.5),
+            customdata=[f"{d:%a %b} {d.day}" for d in values.index],
+            hovertemplate="%{customdata}<br><b>%{y:.0f}</b><extra></extra>",
         )
     )
-    fig.update_layout(
-        **_layout(theme, height=height, legend=False, margin=dict(l=34, r=12, t=24, b=32))
+
+    xs: list[float | None] = []
+    ys: list[float | None] = []
+    for name, row in have.iterrows():
+        xs += [pos[name], pos[name], None]
+        ys += [row["q25"], row["q75"], None]
+    fig.add_trace(
+        go.Scatter(
+            x=xs,
+            y=ys,
+            mode="lines",
+            name="Middle half",
+            line=dict(color=color, width=10),
+            opacity=0.55,
+            hoverinfo="skip",
+        )
     )
+
+    fig.add_trace(
+        go.Scatter(
+            x=[pos[n] for n in have.index],
+            y=have["mean"].to_numpy(),
+            mode="markers",
+            name="Average",
+            marker=dict(size=13, color=color, line=dict(color=theme.surface, width=2)),
+            customdata=have[["n", "median", "q25", "q75", "min", "max"]].to_numpy(),
+            text=list(have.index),
+            hovertemplate=(
+                "<b>%{text}</b> · %{customdata[0]:.0f} days<br>"
+                "average <b>%{y:.1f}</b> · median %{customdata[1]:.1f}<br>"
+                "middle half %{customdata[2]:.1f}–%{customdata[3]:.1f}<br>"
+                "range %{customdata[4]:.0f}–%{customdata[5]:.0f}<extra></extra>"
+            ),
+        )
+    )
+
+    fig.update_layout(**_layout(theme, height=height, legend=True), hovermode="closest")
     fig.update_xaxes(
+        range=[-0.6, 6.6],
+        tickvals=list(range(7)),
+        ticktext=analytics.WEEKDAYS,
         showgrid=False,
+        zeroline=False,  # numeric axis: no stray line at x = 0 (Mon)
         linecolor=theme.baseline,
         ticks="",
         tickfont=dict(color=theme.muted, size=11),
         fixedrange=True,
     )
     fig.update_yaxes(
-        range=[metric.min, metric.max],
+        range=[metric.min - 0.4, metric.max + 0.4],
         tickvals=list(range(int(metric.min), int(metric.max) + 1, 2)),
         showgrid=True,
         gridcolor=theme.grid,

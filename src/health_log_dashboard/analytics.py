@@ -124,11 +124,28 @@ def correlation_matrix(
     return df.corr(method=method, min_periods=min_periods)
 
 
-def day_of_week_profile(df: pd.DataFrame) -> pd.DataFrame:
-    """Mean of each metric by weekday, rows ordered Mon..Sun."""
-    by_day = df.groupby(df.index.day_of_week).mean().reindex(range(7))
-    by_day.index = pd.Index(WEEKDAYS, name="weekday")
-    return by_day
+def weekday_summary(series: pd.Series) -> pd.DataFrame:
+    """Per-weekday distribution of one metric, rows ordered Mon..Sun.
+
+    Columns: ``n`` (days with an entry), ``mean``, ``median``, ``q25``, ``q75``, ``min``,
+    ``max``. A weekday with no entries has ``n == 0`` and NaN statistics.
+    """
+    s = series.dropna()
+    g = s.groupby(s.index.day_of_week)
+    out = pd.DataFrame(
+        {
+            "n": g.size(),
+            "mean": g.mean(),
+            "median": g.median(),
+            "q25": g.quantile(0.25),
+            "q75": g.quantile(0.75),
+            "min": g.min(),
+            "max": g.max(),
+        }
+    ).reindex(range(7))
+    out["n"] = out["n"].fillna(0).astype(int)
+    out.index = pd.Index(WEEKDAYS, name="weekday")
+    return out
 
 
 @dataclass(frozen=True)

@@ -34,12 +34,29 @@ with st.expander("Table view", icon=":material/table:"):
     st.dataframe(corr.rename(index=labels, columns=labels).round(2), width="stretch")
 
 # --- Weekday profile ------------------------------------------------------------------
-st.subheader("Average by weekday")
+st.subheader("Rating by weekday")
+st.caption(
+    "Each faint dot is one day. The thick line spans the middle half of days (25th to 75th "
+    "percentile) and the ringed dot is the average. Tap for details."
+)
 wd_key = st.selectbox("Metric", list(by_key), format_func=labels.get, key="weekday_metric")
-profile = analytics.day_of_week_profile(visible)
-shared.show_chart(charts.weekday_chart(profile, by_key[wd_key], ctx.theme, ctx.color_index[wd_key]))
+wd_series = visible[wd_key]
+shared.show_chart(
+    charts.weekday_chart(wd_series, by_key[wd_key], ctx.theme, ctx.color_index[wd_key])
+)
 with st.expander("Table view", icon=":material/table:"):
-    st.dataframe(profile.rename(columns=labels).round(2), width="stretch")
+    table = analytics.weekday_summary(wd_series).rename(
+        columns={
+            "n": "Days",
+            "mean": "Average",
+            "median": "Median",
+            "q25": "25th pct",
+            "q75": "75th pct",
+            "min": "Min",
+            "max": "Max",
+        }
+    )
+    st.dataframe(table.round(1), width="stretch")
 
 # --- Pair co-occurrence ---------------------------------------------------------------
 st.subheader("Two ratings side by side")

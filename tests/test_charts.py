@@ -64,10 +64,15 @@ class TestEveryChartBuilds:
         assert fig.data[0].zmin == -1 and fig.data[0].zmax == 1
 
     def test_weekday(self, daily, config, theme):
-        fig = charts.weekday_chart(
-            analytics.day_of_week_profile(daily), config.metrics[0], theme, 0
-        )
-        assert list(fig.data[0].x) == analytics.WEEKDAYS
+        m = config.metrics[0]
+        fig = charts.weekday_chart(daily[m.key], m, theme, 0)
+        names = [t.name for t in fig.data]
+        assert names == ["Each day", "Middle half", "Average"]
+        assert list(fig.layout.xaxis.ticktext) == analytics.WEEKDAYS
+        # one dot per logged day, kept within its weekday's column
+        dots = fig.data[0]
+        assert len(dots.x) == daily[m.key].notna().sum()
+        assert (np.abs(np.asarray(dots.x) - np.round(np.asarray(dots.x))) <= 0.25).all()
 
     def test_pair(self, daily, config, theme):
         x, y = config.metrics[0], config.metrics[1]
@@ -115,7 +120,7 @@ def test_charts_handle_a_metric_with_no_data(config):
     m = config.metrics[0]
     charts.trend_chart(empty, m, charts.LIGHT, 0)
     charts.calendar_chart(empty[m.key], m, charts.LIGHT)
-    charts.weekday_chart(analytics.day_of_week_profile(empty), m, charts.LIGHT, 0)
+    charts.weekday_chart(empty[m.key], m, charts.LIGHT, 0)
     charts.pair_chart(
         analytics.pair_counts(empty, config.keys[0], config.keys[1]),
         m,
@@ -161,3 +166,13 @@ def test_overlay_uses_the_window(daily, config):
     np.testing.assert_allclose(
         np.asarray(fig.data[0].y, dtype=float), expected.to_numpy(), equal_nan=True
     )
+
+
+def test_weekday_jitter_is_stable_across_ranges(daily, config):
+    """A day's dot must not move when the visible range changes."""
+    m = config.metrics[0]
+    full = charts.weekday_chart(daily[m.key], m, charts.LIGHT, 0).data[0]
+    tail = charts.weekday_chart(daily[m.key].iloc[-60:], m, charts.LIGHT, 0).data[0]
+    by_date = dict(zip(full.customdata, full.x, strict=True))
+    for label, x in zip(tail.customdata, tail.x, strict=True):
+        assert by_date[label] == pytest.approx(x)

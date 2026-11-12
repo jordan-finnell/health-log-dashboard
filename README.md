@@ -21,7 +21,7 @@ The repo is public, but the author's data is not in it. With no credentials conf
 - **Overview:** latest values and 7-day averages compared with the previous 7 days, with a 30-day sparkline of the daily ratings (tap for the date)
 - **Trends:** each metric over time with a rolling average whose window (1–30 days) you set with a slider
 - **Calendar:** GitHub-style heatmap per metric, plus logging streaks
-- **Patterns:** correlations between metrics and day-of-week profiles
+- **Patterns:** correlations between metrics, and a by-weekday view showing every day's rating with the average and middle half, so you see the spread and not just the mean
 - **Data:** filterable table of the underlying log (live mode only, behind a password)
 
 ## Data model

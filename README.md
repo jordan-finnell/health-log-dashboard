@@ -1,8 +1,10 @@
 # Health Log Dashboard
 
+[![CI](https://github.com/jordan-finnell/health-log-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/jordan-finnell/health-log-dashboard/actions/workflows/ci.yml)
+
 A private, self-hosted Streamlit dashboard for tracking, trending and visualizing a personal daily health log. A Google Form feeds a Google Sheet; the app reads that sheet (read-only) and turns it into trends, calendar heatmaps and pattern analysis, viewable from a browser on the home network.
 
-> **Status: in development.** The data layer and the demo-mode UI work end to end. Live Google Sheets mode and Docker deployment come next. See the roadmap below.
+> **Status:** working. The demo runs out of the box on synthetic data; live Google Sheets mode and the Docker deployment are in use by the author. See the roadmap below.
 
 <table>
   <tr>
@@ -58,7 +60,7 @@ Real-world logs are messy, and the transform layer handles it: late-night loggin
 Requires [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone <this repo> && cd health-log-dashboard
+git clone https://github.com/jordan-finnell/health-log-dashboard.git && cd health-log-dashboard
 uv sync
 DEMO_MODE=1 uv run streamlit run app/Home.py
 ```
@@ -98,6 +100,10 @@ uv run pre-commit run --all-files    # lint + secret scan
 - [x] Repo hygiene: gitignore, dockerignore, pre-commit with secret scanning
 - [x] Data layer: sources, transform, analytics, synthetic generator, tests
 - [x] Streamlit UI in demo mode (overview, trends, calendar, patterns, data)
-- [ ] Live Google Sheets mode with password gate (implemented and tested against a fake sheet; still to be verified with real credentials)
-- [ ] Docker Compose deployment for LAN/phone access
-- [ ] CI, screenshots, optional hosted demo
+- [x] Live Google Sheets mode with password gate
+- [x] Docker Compose deployment for LAN/phone access
+- [x] CI (lint, tests, secret scan, image build) and demo screenshots
+- [ ] Optional hosted demo
+
+## License
+MIT. See [LICENSE](LICENSE).

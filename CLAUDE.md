@@ -2,10 +2,10 @@
 
 Private Streamlit dashboard that tracks, trends and visualizes a personal daily health log (Google Form → Google Sheet). It is also a **public GitHub portfolio piece**, so the repo must never contain real health data, the sheet ID, or credentials.
 
-Single user. Runs on a Windows home PC: code and tooling in **WSL2**, the app served from **Docker Desktop**, opened from a phone on the home Wi-Fi. Full plan: `~/.claude/plans/i-want-to-spin-ethereal-island.md`.
+Single user. Runs on a Windows home PC: code and tooling in **WSL2**, the app served from **Docker Desktop**, opened from a phone on the home Wi-Fi.
 
 ## Status
-Done: Phase 1 (repo hygiene), Phase 2 (data layer), Phase 3 (Streamlit UI, charts, password gate; screenshots in `docs/screenshots/`) and Phase 4 (the user set up real credentials and live mode). Phase 5: `Dockerfile` and `compose.yaml` are built and verified from WSL (image clean, container healthy and hardened, live mode shows the password gate); still to confirm from the phone after the Windows firewall rule. Not started: CI workflow and portfolio polish (Phase 6). Paths marked *(planned)* do not exist yet.
+Done: Phase 1 (repo hygiene), Phase 2 (data layer), Phase 3 (Streamlit UI, charts, password gate; screenshots in `docs/screenshots/`) and Phase 4 (the user set up real credentials and live mode). Phase 5: `Dockerfile` and `compose.yaml` are built and verified from WSL (image clean, container healthy and hardened, live mode shows the password gate); still to confirm from the phone after the Windows firewall rule. Phase 6 (portfolio): CI (`.github/workflows/ci.yml`: lint, tests, gitleaks over full history, image build) and the MIT license are in; the repo is created private on GitHub first and made public only after the user approves. Optional hosted demo (Streamlit Community Cloud, no secrets) not done. Paths marked *(planned)* do not exist yet.
 
 Pipeline: `build_source(mode, config, secrets).load_raw()` → `to_daily(raw, config)` → analytics functions. `to_daily` returns one row per calendar day indexed by `date`, columns = metric keys, NaN for missed days.
 
@@ -60,7 +60,7 @@ Quirks `transform.py` must handle:
 - Nothing is exposed beyond the LAN: no router port-forwarding. The firewall rule is for the Private profile only.
 
 ## Environment notes
-- Repo lives on the WSL Linux filesystem (`/home/jfinnell/project/pain_tracker`), not `/mnt/c`.
+- Repo lives on the WSL Linux filesystem (under `~/project/`), not `/mnt/c`.
 - Docker Desktop publishes ports on the Windows host, so the phone URL is `http://<Windows LAN IP>:8501` (from `ipconfig`, not the `172.x` address in WSL). No `netsh portproxy` or mirrored networking needed.
 - The container user is **uid/gid 1000** so it can read the `chmod 600` secrets file bind-mounted from WSL.
 - Docker Desktop's WSL integration is on, so `docker` and `docker compose` work in this shell. Verify the image with `docker run --rm --entrypoint sh health-log-dashboard:local -c 'find /app -path /app/.venv -prune -o -type f -print'` (should list only code, `config/demo.toml`, `config/metrics.example.toml`, `.streamlit/secrets.toml.example`). Do not put `/home/app` on a tmpfs: it is created root-owned (mode 700) and Streamlit then fails reading `~/.streamlit/secrets.toml`.

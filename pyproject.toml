@@ -3,6 +3,8 @@ name = "health-log-dashboard"
 version = "0.1.0"
 description = "Private Streamlit dashboard for tracking and visualizing a personal daily health log."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
     "google-auth>=2.62.2",

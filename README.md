@@ -18,8 +18,8 @@ A private, self-hosted Streamlit dashboard for tracking, trending and visualizin
 The repo is public, but the author's data is not in it. With no credentials configured the app runs in **demo mode** on synthetic data, so everything here can be tried without access to any real log.
 
 ## What it shows
-- **Overview:** latest values and 7-day averages compared with the previous 7 days
-- **Trends:** each metric over time with 7- and 30-day rolling means
+- **Overview:** latest values and 7-day averages compared with the previous 7 days, with a 30-day sparkline of the daily ratings (tap for the date)
+- **Trends:** each metric over time with a rolling average whose window (1–30 days) you set with a slider
 - **Calendar:** GitHub-style heatmap per metric, plus logging streaks
 - **Patterns:** correlations between metrics and day-of-week profiles
 - **Data:** filterable table of the underlying log (live mode only, behind a password)

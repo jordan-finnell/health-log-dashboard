@@ -5,7 +5,7 @@ import math
 import streamlit as st
 
 import shared
-from health_log_dashboard import analytics
+from health_log_dashboard import analytics, charts
 
 ctx = shared.page_setup("Overview")
 daily = shared.load_daily(ctx)
@@ -15,7 +15,10 @@ last = daily.index.max()
 st.caption(f"Last entry {last:%b} {last.day}, {last.year} · {len(daily)} days in the log")
 
 st.subheader("Last 7 days")
-st.caption("Average rating, compared with the 7 days before. Sparkline is the last 30 days.")
+st.caption(
+    "Average rating, compared with the 7 days before. The sparkline plots each day's rating "
+    "over the last 30 days; tap it to see the date."
+)
 
 
 def tile_slots(n: int):
@@ -29,7 +32,6 @@ def tile_slots(n: int):
 for metric, slot in zip(ctx.config.metrics, tile_slots(len(ctx.config.metrics)), strict=True):
     series = daily[metric.key]
     cmp = analytics.period_comparison(series, 7)
-    spark = analytics.rolling_mean(series, 7).iloc[-30:].dropna()
     newest = analytics.latest(series)
 
     value = "–" if math.isnan(cmp.current) else f"{cmp.current:.1f}"
@@ -40,18 +42,28 @@ for metric, slot in zip(ctx.config.metrics, tile_slots(len(ctx.config.metrics)),
     else:
         delta = f"{cmp.delta:+.1f}"
 
-    with slot:
-        st.metric(
-            metric.label,
-            value,
-            delta=delta,
-            # Rating up is bad for most metrics, so flip the colour for those.
-            delta_color="normal" if metric.higher_is_better else "inverse",
-            delta_description="vs prior 7 days",
-            chart_data=spark if len(spark) > 1 else None,
-            chart_type="line",
-            border=True,
+    if math.isnan(cmp.delta) or abs(cmp.delta) < 0.05:
+        spark_color = ctx.theme.muted
+    else:
+        spark_color = (
+            charts.STATUS_GOOD if (cmp.delta > 0) == metric.higher_is_better else charts.STATUS_BAD
         )
+
+    with slot:
+        with st.container(border=True):
+            st.metric(
+                metric.label,
+                value,
+                delta=delta,
+                # Rating up is bad for most metrics, so flip the colour for those.
+                delta_color="normal" if metric.higher_is_better else "inverse",
+                delta_description="vs prior 7 days",
+            )
+            if series.notna().sum() > 1:
+                shared.show_chart(
+                    charts.sparkline_chart(series, ctx.theme, spark_color),
+                    key=f"spark_{metric.key}",
+                )
         if newest is not None:
             when, rating = newest
             st.caption(f"Latest {rating:.0f} · {when:%b} {when.day}")

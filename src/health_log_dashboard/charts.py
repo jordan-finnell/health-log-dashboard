@@ -257,53 +257,106 @@ def trend_chart(
     color_index: int,
     *,
     days: int | None = None,
-    show_30d: bool = False,
+    window: int = 7,
     height: int = 300,
 ) -> go.Figure:
-    """One metric: faint daily dots, a 2px 7-day average, optionally a 30-day average."""
+    """One metric: faint daily dots plus a 2px rolling average over ``window`` days.
+
+    With ``window == 1`` the average would just repeat the dots, so the daily values are drawn
+    as a single line instead.
+    """
     color = theme.color(color_index)
-    raw = daily[metric.key]
-    avg7 = analytics.rolling_mean(raw, 7)
-    avg30 = analytics.rolling_mean(raw, 30)
-    raw, avg7, avg30 = (analytics.last_days(s, days) for s in (raw, avg7, avg30))
+    raw = analytics.last_days(daily[metric.key], days)
+    avg = analytics.last_days(analytics.rolling_mean(daily[metric.key], window), days)
 
     fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=raw.index,
-            y=raw,
-            mode="markers",
-            name="Daily",
-            marker=dict(size=6, color=color, opacity=0.4),
-            hovertemplate="%{y:.0f}<extra>Daily</extra>",
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=avg7.index,
-            y=avg7,
-            mode="lines",
-            name="7-day avg",
-            line=dict(color=color, width=2, shape="spline", smoothing=0.5),
-            hovertemplate="%{y:.1f}<extra>7-day avg</extra>",
-        )
-    )
-    if show_30d:
+    if window > 1:
         fig.add_trace(
             go.Scatter(
-                x=avg30.index,
-                y=avg30,
-                mode="lines",
-                name="30-day avg",
-                line=dict(color=theme.text_secondary, width=2),
-                hovertemplate="%{y:.1f}<extra>30-day avg</extra>",
+                x=raw.index,
+                y=raw,
+                mode="markers",
+                name="Daily",
+                marker=dict(size=6, color=color, opacity=0.4),
+                hovertemplate="%{y:.0f}<extra>Daily</extra>",
             )
         )
-    if (dot := _end_dot(avg7, color, theme)) is not None:
+        fig.add_trace(
+            go.Scatter(
+                x=avg.index,
+                y=avg,
+                mode="lines",
+                name=f"{window}-day avg",
+                line=dict(color=color, width=2, shape="spline", smoothing=0.5),
+                hovertemplate="%{y:.1f}<extra>" + f"{window}-day avg" + "</extra>",
+            )
+        )
+    else:
+        fig.add_trace(
+            go.Scatter(
+                x=raw.index,
+                y=raw,
+                mode="lines+markers",
+                name="Daily",
+                line=dict(color=color, width=2),
+                marker=dict(size=5, color=color),
+                hovertemplate="%{y:.0f}<extra>Daily</extra>",
+            )
+        )
+    if (dot := _end_dot(avg, color, theme)) is not None:
         fig.add_trace(dot)
 
     fig.update_layout(**_layout(theme, height=height, legend=True), hovermode="x unified")
     _style_time_axes(fig, theme, (metric.min, metric.max))
+    return fig
+
+
+# Status palette (fixed, never themed): used for the tile sparklines, always beside the
+# delta pill's arrow and number so colour never carries the meaning alone.
+STATUS_GOOD = "#0ca30c"
+STATUS_BAD = "#d03b3b"
+
+
+def sparkline_chart(
+    series: pd.Series, theme: Theme, color: str, *, days: int = 30, height: int = 64
+) -> go.Figure:
+    """Tiny axis-free line of each day's actual rating; hover shows the date and the value.
+
+    The y range follows the data (there is no axis to mislead), missing days are gaps.
+    """
+    s = analytics.last_days(series, days)
+    valid = s.dropna()
+    lo, hi = (valid.min(), valid.max()) if len(valid) else (0.0, 1.0)
+    pad = max(1.0, (hi - lo) * 0.15)
+
+    fig = go.Figure(
+        go.Scatter(
+            x=s.index,
+            y=s,
+            mode="lines+markers",
+            line=dict(color=color, width=2),
+            marker=dict(size=4, color=color),
+            connectgaps=False,
+            hovertemplate="%{x|%a %b %-d}<br><b>%{y:.0f}</b><extra></extra>",
+        )
+    )
+    fig.update_layout(
+        height=height,
+        margin=dict(l=4, r=4, t=4, b=4),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family=FONT, size=12, color=theme.text_secondary),
+        hoverlabel=dict(
+            bgcolor=theme.surface,
+            bordercolor=theme.baseline,
+            font=dict(family=FONT, size=12, color=theme.text),
+        ),
+        dragmode=False,
+        showlegend=False,
+        hovermode="x",
+    )
+    fig.update_xaxes(visible=False, fixedrange=True)
+    fig.update_yaxes(visible=False, fixedrange=True, range=[lo - pad, hi + pad])
     return fig
 
 
@@ -314,9 +367,10 @@ def overlay_chart(
     theme: Theme,
     *,
     days: int | None = None,
+    window: int = 7,
     height: int = 340,
 ) -> go.Figure:
-    """Several metrics' 7-day averages on one shared 0-10 axis.
+    """Several metrics' rolling averages (``window`` days) on one shared 0-10 axis.
 
     Colours come from each metric's position in ``all_metrics``, so they never change as
     the selection changes. Up to four series are also labelled at the line end (in text ink,
@@ -331,22 +385,22 @@ def overlay_chart(
     extent: list[pd.Timestamp] = []
     for m in selected:
         color = theme.color(order[m.key])
-        avg7 = analytics.last_days(analytics.rolling_mean(daily[m.key], 7), days)
-        if len(avg7):
-            extent += [avg7.index.min(), avg7.index.max()]
+        avg = analytics.last_days(analytics.rolling_mean(daily[m.key], window), days)
+        if len(avg):
+            extent += [avg.index.min(), avg.index.max()]
         fig.add_trace(
             go.Scatter(
-                x=avg7.index,
-                y=avg7,
+                x=avg.index,
+                y=avg,
                 mode="lines",
                 name=m.label,
                 line=dict(color=color, width=2, shape="spline", smoothing=0.5),
                 hovertemplate="%{y:.1f}<extra>" + m.label + "</extra>",
             )
         )
-        if (dot := _end_dot(avg7, color, theme)) is not None:
+        if (dot := _end_dot(avg, color, theme)) is not None:
             fig.add_trace(dot)
-            valid = avg7.dropna()
+            valid = avg.dropna()
             ends.append((float(valid.iloc[-1]), valid.index[-1], m.label))
 
     label_ends = len(selected) <= 4

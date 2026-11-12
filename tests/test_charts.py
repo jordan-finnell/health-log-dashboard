@@ -25,11 +25,22 @@ def trace_color(fig, name):
 class TestEveryChartBuilds:
     def test_trend(self, daily, config, theme):
         m = config.metrics[0]
-        fig = charts.trend_chart(daily, m, theme, 0, days=60, show_30d=True)
+        fig = charts.trend_chart(daily, m, theme, 0, days=60, window=30)
         names = [t.name for t in fig.data]
-        assert {"Daily", "7-day avg", "30-day avg"} <= set(names)
+        assert {"Daily", "30-day avg"} <= set(names)
         assert fig.layout.dragmode is False
         assert list(fig.layout.yaxis.range) == [m.min - 0.4, m.max + 0.4]
+
+    def test_sparkline(self, daily, config, theme):
+        series = daily["headache"]
+        fig = charts.sparkline_chart(series, theme, charts.STATUS_GOOD)
+        (trace,) = fig.data
+        # plots the actual daily values (not an average) for the last 30 days, with dates
+        expected = series.iloc[-30:]
+        assert list(trace.x) == list(expected.index)
+        np.testing.assert_array_equal(np.asarray(trace.y, dtype=float), expected.to_numpy())
+        assert "%{x|" in trace.hovertemplate and "%{y" in trace.hovertemplate
+        assert fig.layout.xaxis.visible is False and fig.layout.yaxis.visible is False
 
     def test_overlay(self, daily, config, theme):
         fig = charts.overlay_chart(daily, config.metrics[:3], config.metrics, theme)
@@ -127,3 +138,26 @@ def test_theme_for():
     assert charts.theme_for("dark") is charts.DARK
     assert charts.theme_for("light") is charts.LIGHT
     assert charts.theme_for(None) is charts.LIGHT
+
+
+def test_trend_window_sets_the_average_and_its_label(daily, config):
+    m = config.metrics[0]
+    fig = charts.trend_chart(daily, m, charts.LIGHT, 0, days=60, window=14)
+    avg = next(t for t in fig.data if t.name == "14-day avg")
+    expected = analytics.last_days(analytics.rolling_mean(daily[m.key], 14), 60)
+    np.testing.assert_allclose(np.asarray(avg.y, dtype=float), expected.to_numpy(), equal_nan=True)
+
+
+def test_trend_window_one_draws_the_daily_values_only(daily, config):
+    m = config.metrics[0]
+    fig = charts.trend_chart(daily, m, charts.LIGHT, 0, days=60, window=1)
+    assert [t.name for t in fig.data if t.name] == ["Daily"]
+
+
+def test_overlay_uses_the_window(daily, config):
+    key = config.metrics[0].key
+    fig = charts.overlay_chart(daily, config.metrics[:1], config.metrics, charts.LIGHT, window=21)
+    expected = analytics.rolling_mean(daily[key], 21)
+    np.testing.assert_allclose(
+        np.asarray(fig.data[0].y, dtype=float), expected.to_numpy(), equal_nan=True
+    )

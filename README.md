@@ -66,19 +66,26 @@ Then open <http://localhost:8501>. Every page works in demo mode with generated 
 
 Dark and light themes follow your browser/OS setting.
 
-## Self-hosting on Windows (WSL + Docker Desktop) *(planned)*
+## Self-hosting on Windows (WSL + Docker Desktop)
 The author runs this on a Windows PC with the code in WSL2 and the app in Docker Desktop:
 
 1. In Docker Desktop, enable Settings → Resources → WSL Integration for your distro, and "Start Docker Desktop when you sign in".
 2. Create a Google Cloud service account, enable the Sheets API, and share your sheet with the service account as Viewer.
 3. Save the key, sheet ID and an app password in `~/.config/health-log-dashboard/secrets.toml` (`chmod 600`). See `.streamlit/secrets.toml.example`.
-4. Copy `config/metrics.example.toml` to `config/metrics.toml` (gitignored) and edit it so each metric's `column` matches your sheet's header, with the label, scale and `higher_is_better` you want. Demo mode ignores this file and always uses `config/demo.toml`.
-5. From WSL: `docker compose up -d`.
+4. *(Optional)* If your sheet's headers differ from `config/metrics.example.toml`, copy it to `config/metrics.toml` (gitignored) and edit each metric's `column`, label, scale and `higher_is_better`. Then mount it by creating a gitignored `compose.override.yaml` next to `compose.yaml`:
+   ```yaml
+   services:
+     dashboard:
+       volumes:
+         - ./config/metrics.toml:/app/config/metrics.toml:ro
+   ```
+   Demo mode ignores this file and always uses `config/demo.toml`.
+5. From WSL: `docker compose up -d --build`. Re-run it after pulling code changes. `docker compose logs -f` shows the app's output. The container restarts automatically after a reboot once you are signed in to Windows.
 6. In an admin PowerShell, allow the port on private networks only:
    `New-NetFirewallRule -DisplayName "Health Log Dashboard 8501" -Direction Inbound -Protocol TCP -LocalPort 8501 -Action Allow -Profile Private`
 7. On your phone, open `http://<your PC's LAN IP>:8501`. Find the IP with `ipconfig` in Windows (not the address shown inside WSL), and give the PC a DHCP reservation so it stays stable.
 
-The PC must be awake and signed in for the app to be reachable.
+The PC must be awake and signed in for the app to be reachable. The container runs as a non-root user with a read-only filesystem, and the secrets file is mounted read-only (compose refuses to start if it is missing). By default the port listens on all of the PC's network adapters; to pin it to one, set `BIND_ADDR=<ip>` in a gitignored `.env` file.
 
 ## Development
 ```bash

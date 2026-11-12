@@ -1,0 +1,30 @@
+# Run from the WSL shell:  docker compose up -d --build
+# Then open http://<Windows LAN IP>:8501 on the home network (see README).
+#
+# Secrets live outside the repo and are mounted read-only; nothing secret is set here.
+name: health-log-dashboard
+
+services:
+  dashboard:
+    build: .
+    image: health-log-dashboard:local
+    ports:
+      # Reachable from the LAN by default. To pin it to one adapter, put BIND_ADDR=<ip> in a
+      # gitignored .env file.
+      - "${BIND_ADDR:-0.0.0.0}:8501:8501"
+    volumes:
+      - type: bind
+        source: ${HOME}/.config/health-log-dashboard/secrets.toml
+        target: /app/.streamlit/secrets.toml
+        read_only: true
+        bind:
+          create_host_path: false # fail loudly if the file is missing, instead of making a directory
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/app
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

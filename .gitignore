@@ -28,6 +28,7 @@ data/
 *.parquet
 *.sqlite
 *.db
+TODO
 
 # Real survey column mapping (example file is committed)
 config/metrics.toml
@@ -42,3 +43,6 @@ config/metrics.toml
 htmlcov/
 .ipynb_checkpoints/
 .DS_Store
+
+# Local compose overrides (e.g. mounting a private config/metrics.toml)
+compose.override.yaml

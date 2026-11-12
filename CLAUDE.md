@@ -5,7 +5,7 @@ Private Streamlit dashboard that tracks, trends and visualizes a personal daily 
 Single user. Runs on a Windows home PC: code and tooling in **WSL2**, the app served from **Docker Desktop**, opened from a phone on the home Wi-Fi. Full plan: `~/.claude/plans/i-want-to-spin-ethereal-island.md`.
 
 ## Status
-Done: Phase 1 (repo hygiene), Phase 2 (data layer) and Phase 3 (Streamlit UI in demo mode, charts, password gate; screenshots in `docs/screenshots/`). Live Sheets mode is implemented and tested against a fake sheet but has **not been run with real credentials**. Not started: Docker/compose (Phase 5), CI workflow, portfolio polish (Phase 6). Paths marked *(planned)* do not exist yet.
+Done: Phase 1 (repo hygiene), Phase 2 (data layer), Phase 3 (Streamlit UI, charts, password gate; screenshots in `docs/screenshots/`) and Phase 4 (the user set up real credentials and live mode). Phase 5: `Dockerfile` and `compose.yaml` are written and covered by text tests (`tests/test_deploy_files.py`) but have **not been built or run**, because Docker is not reachable from this WSL shell. Not started: CI workflow and portfolio polish (Phase 6). Paths marked *(planned)* do not exist yet.
 
 Pipeline: `build_source(mode, config, secrets).load_raw()` → `to_daily(raw, config)` → analytics functions. `to_daily` returns one row per calendar day indexed by `date`, columns = metric keys, NaN for missed days.
 
@@ -16,7 +16,7 @@ uv run pytest                             # tests (run against synthetic data)
 uv run ruff check . && uv run ruff format .
 uv run pre-commit run --all-files         # ruff, gitleaks, hygiene hooks
 DEMO_MODE=1 uv run streamlit run app/Home.py   # dev server, then http://localhost:8501 in the Windows browser
-docker compose up -d                      # (planned) phone-reachable "prod" run, from the WSL shell
+docker compose up -d --build              # phone-reachable "prod" run, from the WSL shell (untested: no Docker here yet)
 ```
 Add dependencies with `uv add` / `uv add --dev`, never by editing `uv.lock`.
 
@@ -63,7 +63,8 @@ Quirks `transform.py` must handle:
 - Repo lives on the WSL Linux filesystem (`/home/jfinnell/project/pain_tracker`), not `/mnt/c`.
 - Docker Desktop publishes ports on the Windows host, so the phone URL is `http://<Windows LAN IP>:8501` (from `ipconfig`, not the `172.x` address in WSL). No `netsh portproxy` or mirrored networking needed.
 - The container user is **uid/gid 1000** so it can read the `chmod 600` secrets file bind-mounted from WSL.
-- `docker` currently doesn't respond in this WSL shell. Enable Docker Desktop → Settings → Resources → WSL Integration for this distro before Phase 5.
+- `docker` currently doesn't respond in this WSL shell. Enable Docker Desktop → Settings → Resources → WSL Integration for this distro, then build and verify the image (`docker compose up -d --build`, `docker compose ps` healthy, `docker run --rm --entrypoint ls <image> -a /app` shows no secrets).
+- `compose.yaml` mounts only the secrets file (read-only, `create_host_path: false`). A private `config/metrics.toml` is mounted through a gitignored `compose.override.yaml`, never in the committed file. Never put secret values in `compose.yaml`, the Dockerfile, build args or labels.
 
 ## Conventions
 - Default branch is **`trunk`**, not `master`/`main`.

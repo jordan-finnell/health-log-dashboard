@@ -1,8 +1,8 @@
 .git
 .gitignore
 .venv
-__pycache__/
-*.py[oc]
+**/__pycache__/
+**/*.py[oc]
 .pytest_cache/
 .ruff_cache/
 .github/

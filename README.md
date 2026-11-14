@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/jordan-finnell/health-log-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/jordan-finnell/health-log-dashboard/actions/workflows/ci.yml)
 
-A private, self-hosted Streamlit dashboard for tracking, trending and visualizing a personal daily health log. A Google Form feeds a Google Sheet; the app reads that sheet (read-only) and turns it into trends, calendar heatmaps and pattern analysis, viewable from a browser on the home network.
+A private, self-hosted Streamlit dashboard for tracking, trending and visualizing a personal daily health log. A Google Form feeds a Google Sheet; the app reads that sheet (read-only) and turns it into trends, calendar heatmaps, pattern analysis and a look at how ratings move with the weather, viewable from a browser on the home network.
 
 > **Status:** working. The demo runs out of the box on synthetic data; live Google Sheets mode and the Docker deployment are in use by the author. See the roadmap below.
 
@@ -12,10 +12,11 @@ A private, self-hosted Streamlit dashboard for tracking, trending and visualizin
     <td><img src="docs/screenshots/trends.png" alt="Trends: three metrics overlaid on a shared 0-10 axis" width="220"></td>
     <td><img src="docs/screenshots/calendar.png" alt="Calendar: weeks by weekday heatmap" width="220"></td>
     <td><img src="docs/screenshots/patterns.png" alt="Patterns: correlation matrix, weekday profile, rating co-occurrence" width="220"></td>
+    <td><img src="docs/screenshots/weather.png" alt="Weather: ratings on big pressure-change days, around big changes, and day by day" width="220"></td>
   </tr>
 </table>
 
-*Screenshots are taken in demo mode and show synthetic data only.*
+*Screenshots are taken in demo mode and show synthetic data and synthetic weather only. The demo log is generated to react to its invented weather, so the Weather page has a pattern to show.*
 
 The repo is public, but the author's data is not in it. With no credentials configured the app runs in **demo mode** on synthetic data, so everything here can be tried without access to any real log.
 
@@ -24,6 +25,13 @@ The repo is public, but the author's data is not in it. With no credentials conf
 - **Trends:** each metric over time with a rolling average whose window (1–30 days) you set with a slider
 - **Calendar:** GitHub-style heatmap per metric, plus logging streaks
 - **Patterns:** correlations between metrics, and a by-weekday view showing every day's rating with the average and middle half, so you see the spread and not just the mean
+- **Weather:** whether ratings move with *changes* in air pressure, humidity (dew point) or temperature, over 3 to 48 hours. You get:
+  - a heatmap of how each metric differs from its usual level on big-drop, typical and big-rise days (same day or next day);
+  - the average course of one metric from 2 days before to 3 days after big changes;
+  - a day-by-day view of ratings above the weather changes;
+  - a next-24-hour outlook, also summarised on the overview.
+
+  The features come from [winds-of-change](https://github.com/jordan-finnell/winds-of-change), a small companion library.
 - **Data:** filterable table of the underlying log (live mode only; behind the password when one is set)
 
 ## Data model
@@ -44,7 +52,12 @@ Real-world logs are messy, and the transform layer handles it: late-night loggin
 
 ## Design
 - **Config-driven metrics:** column headers map to stable keys, labels, scales and a better-when direction in TOML (`config/demo.toml` for the demo, `config/metrics.example.toml` for a real sheet), so changing or renaming a survey question never touches the code.
-- **Pluggable sources:** a `DataSource` interface with Google Sheets, CSV and synthetic implementations.
+- **Pluggable sources:** a `DataSource` interface with Google Sheets, CSV and synthetic implementations. Weather sources (Open-Meteo or synthetic) come from winds-of-change, pinned to a release wheel.
+- **Weather done carefully:**
+  - Changes, not levels.
+  - The daily cycle is removed before measuring short windows.
+  - One weather model and endpoint per series, because splicing two invents fake pressure jumps.
+  - Each rating is compared with that metric's own level over the surrounding month, so seasons don't pose as weather effects.
 - **Logic separate from UI:** analytics live in a plain Python package with tests. Streamlit pages stay thin.
 - **Mobile first:** layouts are designed for a phone screen. Charts disable drag-zoom so touch scrolling still works, and tapping shows a tooltip listing every series for that date.
 - **Honest charts:** one axis and a fixed 0–10 scale; a metric keeps the same colour whatever is selected; missing days are blank, never zero; every chart has a table view; colours are validated for colour-blind separation in both light and dark themes.
@@ -53,6 +66,7 @@ Real-world logs are messy, and the transform layer handles it: late-night loggin
 - Access to the sheet uses a Google Cloud **service account** with the read-only Sheets scope, shared on that single sheet as Viewer. It can be revoked at any time by un-sharing.
 - Credentials, the sheet ID and the app password live **outside the repository** in `~/.config/health-log-dashboard/secrets.toml` and are bind-mounted read-only into the container. They never enter the image or git history.
 - Live mode has an **optional password gate**: set `app_password` and the dashboard asks for it before loading any data; leave it out and the dashboard opens directly, with a sidebar warning. The password only keeps other people on the same network out, so rely on the network boundary: the server is reachable only on the home LAN, with no port-forwarding and a firewall rule for the Private network profile only. If you ever expose it beyond the LAN, set a password.
+- **Weather is optional** (a `[weather]` table in the same secrets file). Only coordinates rounded to 0.1° (about 11 km) and a date range are sent to [Open-Meteo](https://open-meteo.com/); no health data is. Demo mode never reads the location and never calls out.
 - Real data is fetched into memory and cached briefly. Local data and key files are gitignored and dockerignored.
 - Every commit is scanned for secrets with [gitleaks](https://github.com/gitleaks/gitleaks) via pre-commit, and again in CI.
 
@@ -73,7 +87,7 @@ The author runs this on a Windows PC with the code in WSL2 and the app in Docker
 
 1. In Docker Desktop, enable Settings → Resources → WSL Integration for your distro, and "Start Docker Desktop when you sign in".
 2. Create a Google Cloud service account, enable the Sheets API, and share your sheet with the service account as Viewer.
-3. Save the key, sheet ID and (optionally) an app password in `~/.config/health-log-dashboard/secrets.toml` (`chmod 600`). See `.streamlit/secrets.toml.example`.
+3. Save the key, sheet ID and (optionally) an app password in `~/.config/health-log-dashboard/secrets.toml` (`chmod 600`). See `.streamlit/secrets.toml.example` To turn on the Weather page, also add the optional `[weather]` table (latitude and longitude) at the end.
 4. *(Optional)* If your sheet's headers differ from `config/metrics.example.toml`, copy it to `config/metrics.toml` (gitignored) and edit each metric's `column`, label, scale and `higher_is_better`. Then mount it by creating a gitignored `compose.override.yaml` next to `compose.yaml`:
    ```yaml
    services:
@@ -103,7 +117,11 @@ uv run pre-commit run --all-files    # lint + secret scan
 - [x] Live Google Sheets mode with an optional password gate
 - [x] Docker Compose deployment for LAN/phone access
 - [x] CI (lint, tests, secret scan, image build) and demo screenshots
+- [x] Weather: pressure, humidity and temperature changes vs. ratings, with a 24-hour outlook (via winds-of-change)
 - [ ] Optional hosted demo
+
+## Weather data
+Weather data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0), from the ECMWF IFS model. Open-Meteo's free API is for non-commercial use.
 
 ## License
 MIT. See [LICENSE](LICENSE).

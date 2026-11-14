@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
 import pandas as pd
+from winds_of_change import SyntheticWeatherSource, daily_weather
 
 from .config import ConfigError, MetricsConfig, Mode
 from .synthetic import generate_raw
@@ -21,6 +22,11 @@ SHEETS_READONLY_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly"
 # worsening metrics (direction-aware colouring) and clear correlations in the Patterns page.
 DEMO_SEED = 19
 
+# The demo's weather. The demo log is generated to react to this same series, so the
+# Weather page has a (synthetic, invented) pattern to show.
+DEMO_WEATHER = SyntheticWeatherSource(seed=DEMO_SEED)
+DEMO_WEATHER_DRIVER = "pressure_change_24h"
+
 
 class DataSource(Protocol):
     def load_raw(self) -> pd.DataFrame: ...
@@ -32,9 +38,19 @@ class SyntheticSource:
     days: int = 180
     seed: int = DEMO_SEED
     end: date | None = None
+    weather: bool = False  # couple the log to DEMO_WEATHER (demo mode only)
 
     def load_raw(self) -> pd.DataFrame:
-        return generate_raw(self.config, days=self.days, seed=self.seed, end=self.end)
+        change = self._weather_change() if self.weather else None
+        return generate_raw(
+            self.config, days=self.days, seed=self.seed, end=self.end, weather_change=change
+        )
+
+    def _weather_change(self) -> pd.Series:
+        end = self.end or date.today()
+        start = end - timedelta(days=self.days + 3)
+        daily = daily_weather(DEMO_WEATHER.load_hourly(start, end), windows=(24,))
+        return daily[DEMO_WEATHER_DRIVER]
 
 
 @dataclass(frozen=True)
@@ -74,7 +90,7 @@ def build_source(
 ) -> DataSource:
     """Demo mode always yields synthetic data, so it can never read the real sheet."""
     if mode is Mode.DEMO:
-        return SyntheticSource(config)
+        return SyntheticSource(config, weather=True)
     if not secrets:
         raise ConfigError("live mode requires secrets")
     return GSheetSource(

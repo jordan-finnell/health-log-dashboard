@@ -158,3 +158,28 @@ def test_synthetic_demo_metrics_move_in_the_expected_directions(demo_config):
     assert corr.loc["stress", "sleep_quality"] < -0.2
     assert corr.loc["stress", "soreness"] > 0.2
     assert corr.loc["energy", "focus"] > 0.2
+
+
+def test_weather_coupling_uses_its_own_random_stream(demo_config):
+    """Zero weather change gives exactly the uncoupled log, so the base demo is unchanged."""
+
+    plain = generate_raw(demo_config, days=120, end=FIXED_END, seed=19)
+    flat = pd.Series(0.0, index=pd.date_range(end=FIXED_END, periods=130, freq="D"))
+    pd.testing.assert_frame_equal(
+        plain, generate_raw(demo_config, days=120, end=FIXED_END, seed=19, weather_change=flat)
+    )
+
+
+def test_coupled_demo_has_a_next_day_pressure_pattern(demo_config):
+    import winds_of_change as woc
+
+    src = SyntheticSource(demo_config, days=360, end=FIXED_END, weather=True)
+    daily = to_daily(src.load_raw(), demo_config)
+    change = src._weather_change().reindex(daily.index)
+    resp = woc.response_by_change(woc.anomaly(daily), change, woc.change_bins(change), lag=1)
+    drops = resp[resp["bin"] == "Big drop"]
+    assert (drops["z"].abs() > 3).any()  # at least one demo metric reacts to pressure drops
+
+
+def test_build_source_demo_is_weather_coupled(demo_config):
+    assert build_source(Mode.DEMO, demo_config).weather is True

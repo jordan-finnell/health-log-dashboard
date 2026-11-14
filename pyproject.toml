@@ -12,6 +12,7 @@ dependencies = [
     "pandas>=3.1.1",
     "plotly>=7.1.0",
     "streamlit>=1.67.0",
+    "winds-of-change",
 ]
 
 [build-system]
@@ -39,3 +40,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["health_log_dashboard", "shared"]
+
+[tool.uv.sources]
+winds-of-change = { url = "https://github.com/jordan-finnell/winds-of-change/releases/download/v0.2.0/winds_of_change-0.2.0-py3-none-any.whl" }

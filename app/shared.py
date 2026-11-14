@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
+from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
+from winds_of_change import Outlook, WeatherError, convert, daily_weather, outlook
 
 from health_log_dashboard.auth import verify_password
 from health_log_dashboard.charts import PLOT_CONFIG, Theme, theme_for
@@ -21,11 +23,20 @@ from health_log_dashboard.config import (
 )
 from health_log_dashboard.sources import build_source
 from health_log_dashboard.transform import to_daily
+from health_log_dashboard.weather import (
+    DISPLAY_UNITS,
+    WINDOWS,
+    build_forecast_source,
+    build_weather_source,
+)
 
 log = logging.getLogger("health_log_dashboard")
 
 RANGES: dict[str, int | None] = {"7d": 7, "30d": 30, "90d": 90, "1y": 365, "All": None}
 CACHE_TTL_SECONDS = 600
+# Weather updates every 6 h. Failures are cached too, so an offline home page doesn't wait
+# out a timeout on every load; "Refresh data" retries at once.
+WEATHER_TTL_SECONDS = 900
 
 
 @dataclass(frozen=True)
@@ -167,3 +178,83 @@ def table_view(df: pd.DataFrame, config: MetricsConfig, *, label: str = "Table v
     """A text/table twin for a chart, so no value is reachable only through colour or hover."""
     with st.expander(label, icon=":material/table:"):
         st.dataframe(styled(display_table(df, config)), width="stretch")
+
+
+# ------------------------------------------------------------------------------ weather
+
+
+@dataclass(frozen=True)
+class WeatherData:
+    hourly: pd.DataFrame  # archive: tz-aware local hours, display units, the whole log
+    daily: pd.DataFrame  # one row per day: daily means and peak w-hour changes
+    synthetic: bool
+    # Outlook series reaching past now: the forecast (live) or the synthetic series (demo).
+    # Changes are measured within it and ranked against `hourly`. None if unavailable.
+    recent: pd.DataFrame | None = None
+
+    def outlook(self, key: str, hours: int, now: pd.Timestamp | None = None) -> Outlook | None:
+        if self.recent is None or key not in self.recent:
+            return None
+        now = now if now is not None else pd.Timestamp.now(tz=self.recent.index.tz)
+        return outlook(self.recent, key, now, hours, history=self.hourly)
+
+
+@dataclass(frozen=True)
+class WeatherResult:
+    data: WeatherData | None
+    problem: str | None = None  # None, "unconfigured", "config" or "fetch"
+    message: str = ""
+
+
+@st.cache_data(ttl=WEATHER_TTL_SECONDS, show_spinner="Loading weather…")
+def _load_weather(mode_value: str, start: date, end: date) -> WeatherResult:
+    """Secrets (and so the location) are read in here, never passed in the cache key."""
+    mode = Mode(mode_value)
+    try:
+        source = build_weather_source(mode, _secrets() if mode is Mode.LIVE else None)
+    except ConfigError as exc:
+        return WeatherResult(None, "config", str(exc))
+    if source is None:
+        return WeatherResult(None, "unconfigured")
+    try:
+        hourly = convert(source.load_hourly(start, end), DISPLAY_UNITS)
+    except WeatherError as exc:  # message carries no location by design
+        log.warning("weather unavailable: %s", exc)
+        return WeatherResult(None, "fetch", str(exc))
+    daily = daily_weather(hourly, WINDOWS)
+    recent = hourly if mode is Mode.DEMO else None
+    forecast = build_forecast_source(mode, _secrets() if mode is Mode.LIVE else None)
+    if forecast is not None:
+        try:
+            recent = convert(forecast.load_recent(), DISPLAY_UNITS)
+        except WeatherError as exc:  # history still works; only the outlook is lost
+            log.warning("weather forecast unavailable: %s", exc)
+    return WeatherResult(WeatherData(hourly, daily, mode is Mode.DEMO, recent))
+
+
+def load_weather(ctx: Context, daily: pd.DataFrame, *, quiet: bool = False) -> WeatherData | None:
+    """Weather covering the whole log plus the coming day, or None (with a short message
+    unless ``quiet``). Never stops the page: weather is optional."""
+    start = date(daily.index.min().year, 1, 1)  # whole years: the exact log start stays local
+    end = date.today() + timedelta(days=2)  # the archive clamps this to what it has
+    try:
+        result = _load_weather(ctx.mode.value, start, end)
+    except Exception as exc:
+        log.exception("failed to load weather")
+        result = WeatherResult(None, "fetch", type(exc).__name__)
+    if result.data is not None or quiet:
+        return result.data
+    if result.problem == "unconfigured":
+        st.info(
+            "Weather isn't set up. Add a `[weather]` section with `latitude` and `longitude` "
+            "to secrets.toml (see `.streamlit/secrets.toml.example`).",
+            icon=":material/cloud_off:",
+        )
+    elif result.problem == "config":
+        st.error(f"Weather settings problem: {result.message}")
+    else:
+        st.warning(
+            f"Couldn't load weather right now ({result.message}). It retries in a few minutes.",
+            icon=":material/cloud_off:",
+        )
+    return None

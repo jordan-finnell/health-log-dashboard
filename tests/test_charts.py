@@ -172,3 +172,72 @@ def test_weekday_jitter_is_stable_across_ranges(daily, config):
     by_date = dict(zip(full.customdata, full.x, strict=True))
     for label, x in zip(tail.customdata, tail.x, strict=True):
         assert by_date[label] == pytest.approx(x)
+
+
+# ----------------------------------------------------------------------------- weather
+
+
+def _response(metrics, mean=0.8, z=3.0):
+    rows = []
+    for m in metrics:
+        for b in charts.WEATHER_BINS:
+            big = b == "Big drop"
+            rows.append({"metric": m.key, "bin": b, "mean": mean if big else 0.05, "se": 0.2,
+                         "n": 40, "z": z if big else 0.2})  # fmt: skip
+    return pd.DataFrame(rows)
+
+
+@pytest.mark.parametrize("theme", [charts.LIGHT, charts.DARK])
+def test_weather_response_flips_colour_for_higher_is_better(config, theme):
+    fig = charts.weather_response_chart(_response(config.metrics), config.metrics, theme)
+    z = np.asarray(fig.data[1].z)
+    rows = {m.key: i for i, m in enumerate(config.metrics)}
+    assert z[rows["headache"], 0] > 0  # rating up, lower is better -> worse (red side)
+    assert z[rows["excitement"], 0] < 0  # rating up, higher is better -> better (blue side)
+    assert (fig.data[1].zmin, fig.data[1].zmax) == (-1.0, 1.0)
+    texts = [a.text for a in fig.layout.annotations]
+    assert texts == ["+0.8"] * len(config.metrics)  # only the clear cells are labelled
+
+
+def test_weather_response_handles_a_metric_with_too_few_days(config):
+    resp = _response(config.metrics)
+    resp.loc[resp["metric"] == "neck_pain", ["mean", "se", "z"]] = np.nan
+    fig = charts.weather_response_chart(resp, config.metrics, charts.LIGHT)
+    assert np.isnan(np.asarray(fig.data[1].z, dtype=float)[-1]).all()
+    assert "too few days" in fig.data[0].customdata[-1][0]
+
+
+def _profile(peak=1.0, events=8):
+    idx = pd.Index(range(-2, 4), name="offset")
+    mean = np.where(idx == 1, peak, 0.1)
+    prof = pd.DataFrame({"mean": mean, "ci_low": mean - 0.4, "ci_high": mean + 0.4, "n": 8},
+                        index=idx)  # fmt: skip
+    prof.attrs["events"] = events
+    return prof
+
+
+@pytest.mark.parametrize("theme", [charts.LIGHT, charts.DARK])
+def test_event_profile_chart(config, theme):
+    m = config.metrics[0]
+    empty = _profile() * np.nan
+    fig = charts.event_profile_chart(_profile(), empty, m, theme, 0)
+    assert [t.name for t in fig.data] == ["After big drops (8)"]  # an empty profile is left out
+    assert fig.data[0].line.color == theme.color(0)
+    fig2 = charts.event_profile_chart(_profile(), _profile(-0.5), m, theme, 0)
+    assert [t.line.dash for t in fig2.data] == ["solid", "dash"]
+
+
+@pytest.mark.parametrize("theme", [charts.LIGHT, charts.DARK])
+def test_weather_timeline_marks_big_days_and_keeps_gaps(config, theme):
+    idx = pd.date_range("2026-01-01", periods=30, freq="D", name="date")
+    ratings = pd.Series(np.arange(30) % 10, index=idx, dtype=float)
+    ratings.iloc[5] = np.nan
+    change = pd.Series(np.linspace(-6, 6, 30), index=idx)
+    fig = charts.weather_timeline_chart(
+        ratings, change, config.metrics[0], theme, 0, change_label="Pressure, 24 h change",
+        unit="hPa", drop_below=-4, rise_above=4, days=None,
+    )  # fmt: skip
+    assert np.isnan(fig.data[0].y[5])  # missing stays missing
+    colors = list(fig.data[1].marker.color)
+    assert colors[0] == theme.muted and colors[15] == theme.baseline
+    assert fig.layout.yaxis2.tickvals is None and fig.data[1].yaxis == "y2"

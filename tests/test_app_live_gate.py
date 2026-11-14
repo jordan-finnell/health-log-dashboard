@@ -33,8 +33,14 @@ def live(monkeypatch):
         loads.append(mode)
         return SyntheticSource(config)
 
+    def fake_build_weather_source(mode, secrets=None):
+        loads.append(("weather", mode))
+        return None
+
     monkeypatch.setattr(shared, "build_source", fake_build_source)
+    monkeypatch.setattr(shared, "build_weather_source", fake_build_weather_source)
     shared._load_daily.clear()
+    shared._load_weather.clear()
 
     def make(secrets=SECRETS):
         at = AppTest.from_file(HOME, default_timeout=APP_TIMEOUT)
@@ -74,8 +80,9 @@ def test_correct_password_unlocks_the_dashboard(live):
     assert live.loads  # the source was built only after login
 
 
-def test_gate_applies_to_every_page(live):
-    page = str(Path(HOME).parent / "pages" / "4_Data.py")
+@pytest.mark.parametrize("page_file", ["5_Data.py", "4_Weather.py"])
+def test_gate_applies_to_every_page(live, page_file):
+    page = str(Path(HOME).parent / "pages" / page_file)
     at = AppTest.from_file(page, default_timeout=APP_TIMEOUT)
     for key, value in SECRETS.items():
         at.secrets[key] = value

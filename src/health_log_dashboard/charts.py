@@ -717,3 +717,267 @@ def pair_chart(counts: pd.DataFrame, x: Metric, y: Metric, theme: Theme) -> go.F
         fixedrange=True,
     )
     return fig
+
+
+# ----------------------------------------------------------------------------- weather
+
+WEATHER_BINS = ("Big drop", "Typical", "Big rise")
+_OFFSET_LABELS = {-2: "−2", -1: "−1", 0: "Day of", 1: "+1", 2: "+2", 3: "+3"}
+
+
+def weather_response_chart(
+    response: pd.DataFrame,
+    metrics: Sequence[Metric],
+    theme: Theme,
+    *,
+    scale: float = 1.0,
+    min_z: float = 2.0,
+) -> go.Figure:
+    """Metrics x (big drop, typical, big rise): how each rating differs from its usual level.
+
+    ``response`` is ``winds_of_change.response_by_change`` output. Colour shows worse (red)
+    or better (blue) than usual, flipped for higher-is-better metrics, on a fixed
+    ``±scale`` range. The printed number is the actual rating change, shown only where it
+    stands out from noise (``|z| >= min_z``). Grey cells had too few days.
+    """
+    table = response.set_index(["metric", "bin"])
+    keys = [m.key for m in metrics]
+    labels = [m.label for m in metrics]
+    mean = np.full((len(keys), len(WEATHER_BINS)), np.nan)
+    z = np.full_like(mean, np.nan)
+    n = np.zeros_like(mean)
+    se = np.full_like(mean, np.nan)
+    for i, key in enumerate(keys):
+        for j, label in enumerate(WEATHER_BINS):
+            if (key, label) in table.index:
+                row = table.loc[(key, label)]
+                mean[i, j], z[i, j], n[i, j], se[i, j] = row["mean"], row["z"], row["n"], row["se"]
+    worse = np.array([[-1.0 if m.higher_is_better else 1.0] for m in metrics]) * mean
+
+    def hover(i: int, j: int) -> str:
+        if np.isnan(mean[i, j]):
+            return f"{labels[i]} · {WEATHER_BINS[j]}<br>too few days ({n[i, j]:.0f})"
+        return (
+            f"{labels[i]} · {WEATHER_BINS[j]}<br><b>{mean[i, j]:+.1f}</b> vs usual "
+            f"(±{1.96 * se[i, j]:.1f}) · {n[i, j]:.0f} days"
+        )
+
+    custom = np.array([[hover(i, j) for j in range(len(WEATHER_BINS))] for i in range(len(keys))])
+    fig = go.Figure()
+    fig.add_trace(
+        go.Heatmap(
+            z=np.ones_like(mean),
+            x=list(WEATHER_BINS),
+            y=labels,
+            colorscale=[[0, theme.grid], [1, theme.grid]],
+            showscale=False,
+            xgap=2,
+            ygap=2,
+            customdata=custom,
+            hovertemplate="%{customdata}<extra></extra>",
+        )
+    )
+    fig.add_trace(
+        go.Heatmap(
+            z=np.clip(worse, -scale, scale),
+            x=list(WEATHER_BINS),
+            y=labels,
+            zmin=-scale,
+            zmax=scale,
+            colorscale=_colorscale([theme.div_negative, theme.div_mid, theme.div_positive]),
+            xgap=2,
+            ygap=2,
+            hoverongaps=False,
+            customdata=custom,
+            hovertemplate="%{customdata}<extra></extra>",
+            colorbar=_colorbar(theme, [-scale, 0, scale], ["better", "usual", "worse"], top=False),
+        )
+    )
+    for i, j in zip(*np.nonzero(np.abs(np.nan_to_num(z)) >= min_z), strict=True):
+        t = min(1.0, abs(worse[i, j]) / scale)
+        end = theme.div_positive if worse[i, j] > 0 else theme.div_negative
+        fig.add_annotation(
+            x=WEATHER_BINS[j],
+            y=labels[i],
+            text=f"{mean[i, j]:+.1f}",
+            showarrow=False,
+            font=dict(size=12, color=_ink_on(_mix(theme.div_mid, end, t))),
+        )
+    height = 44 * len(metrics) + 120
+    fig.update_layout(
+        **_layout(theme, height=height, legend=False, margin=dict(l=104, r=12, t=32, b=52))
+    )
+    fig.update_xaxes(
+        side="top", showgrid=False, ticks="", tickfont=dict(color=theme.muted, size=12),
+        fixedrange=True,
+    )  # fmt: skip
+    fig.update_yaxes(
+        autorange="reversed", showgrid=False, ticks="", tickfont=dict(color=theme.muted, size=12),
+        fixedrange=True,
+    )  # fmt: skip
+    return fig
+
+
+def event_profile_chart(
+    drops: pd.DataFrame,
+    rises: pd.DataFrame,
+    metric: Metric,
+    theme: Theme,
+    color_index: int,
+    *,
+    height: int = 300,
+) -> go.Figure:
+    """A metric's average difference from usual, from 2 days before to 3 days after big
+    changes. ``drops``/``rises`` are ``winds_of_change.event_profile`` frames; a profile with
+    too few events (all NaN) is left out. Whiskers are 95% confidence intervals."""
+    color = theme.color(color_index)
+    fig = go.Figure()
+    fig.add_hline(y=0, line=dict(color=theme.baseline, width=1))
+    extent = 1.0
+    for name, prof, nudge, dash, symbol in (
+        ("After big drops", drops, -0.08, "solid", "circle"),
+        ("After big rises", rises, 0.08, "dash", "circle-open"),
+    ):
+        if prof["mean"].isna().all():
+            continue
+        x = prof.index.to_numpy(dtype=float) + nudge
+        mean = prof["mean"].to_numpy()
+        extent = max(extent, float(np.nanmax(np.abs(prof[["ci_low", "ci_high"]].to_numpy()))))
+        events = prof.attrs.get("events", 0)
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=mean,
+                mode="lines+markers",
+                name=f"{name} ({events})",
+                line=dict(color=color, width=2, dash=dash),
+                marker=dict(size=9, color=color, symbol=symbol, line=dict(color=color, width=2)),
+                error_y=dict(
+                    type="data",
+                    symmetric=False,
+                    array=prof["ci_high"].to_numpy() - mean,
+                    arrayminus=mean - prof["ci_low"].to_numpy(),
+                    color=color,
+                    thickness=1.5,
+                    width=3,
+                ),
+                customdata=np.stack(
+                    [[_OFFSET_LABELS.get(int(k), str(k)) for k in prof.index], prof["n"]], axis=1
+                ),
+                hovertemplate=(
+                    f"{name}<br>day %{{customdata[0]}}: <b>%{{y:+.1f}}</b> vs usual"
+                    "<br>%{customdata[1]} events<extra></extra>"
+                ),
+            )
+        )
+    lim = min(4.0, max(1.0, extent * 1.1))
+    fig.update_layout(**_layout(theme, height=height, legend=True), hovermode="closest")
+    fig.update_xaxes(
+        tickvals=list(_OFFSET_LABELS),
+        ticktext=list(_OFFSET_LABELS.values()),
+        range=[-2.4, 3.4],
+        showgrid=False,
+        zeroline=False,
+        linecolor=theme.baseline,
+        ticks="",
+        tickfont=dict(color=theme.muted, size=11),
+        fixedrange=True,
+        title=dict(text="days from the change", font=dict(color=theme.muted, size=11)),
+    )
+    fig.update_yaxes(
+        range=[-lim, lim],
+        showgrid=True,
+        gridcolor=theme.grid,
+        zeroline=False,
+        ticks="",
+        tickfont=dict(color=theme.muted, size=11),
+        tickformat="+.1f",
+        fixedrange=True,
+    )
+    return fig
+
+
+def weather_timeline_chart(
+    series: pd.Series,
+    change: pd.Series,
+    metric: Metric,
+    theme: Theme,
+    color_index: int,
+    *,
+    change_label: str,
+    unit: str,
+    drop_below: float,
+    rise_above: float,
+    days: int | None = 90,
+    height: int = 380,
+) -> go.Figure:
+    """Daily ratings (top, fixed scale) above the day's weather change (bottom, bars).
+
+    Two panels sharing one date axis rather than two y-scales on one plot. Big-change days
+    (beyond ``drop_below`` / ``rise_above``) are drawn darker; a tap shows both panels.
+    """
+    color = theme.color(color_index)
+    ratings = analytics.last_days(series, days)
+    start, end = ratings.index.min(), ratings.index.max()
+    ch = change.reindex(pd.date_range(start, end, freq="D"))
+    big = (ch <= drop_below) | (ch >= rise_above)
+    bar_colors = np.where(big.to_numpy(), theme.muted, theme.baseline)
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=ratings.index,
+            y=ratings,
+            mode="lines+markers",
+            name=metric.label,
+            line=dict(color=color, width=2),
+            marker=dict(size=5, color=color),
+            connectgaps=False,
+            hovertemplate="%{y:.0f}<extra>" + metric.label + "</extra>",
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            x=ch.index,
+            y=ch,
+            yaxis="y2",
+            name=change_label,
+            marker=dict(color=bar_colors, line=dict(width=0)),
+            hovertemplate="%{y:+.1f} " + unit + "<extra>" + change_label + "</extra>",
+        )
+    )
+    lo, hi = metric.min, metric.max
+    reach = float(np.nanmax(np.abs(ch.to_numpy()))) if ch.notna().any() else 1.0
+    fig.update_layout(
+        **_layout(theme, height=height, legend=False, margin=dict(l=40, r=12, t=28, b=32)),
+        hovermode="x unified",
+        hoversubplots="axis",
+        bargap=0.25,
+        yaxis=dict(domain=[0.42, 1.0]),
+        yaxis2=dict(domain=[0.0, 0.3]),
+    )
+    _style_time_axes(fig, theme, (lo, hi))
+    fig.update_layout(
+        yaxis2=dict(
+            range=[-reach * 1.1, reach * 1.1],
+            tickvals=None,  # _style_time_axes set the 0-10 rating ticks on every y axis
+            showgrid=False,
+            zeroline=True,
+            zerolinecolor=theme.baseline,
+            zerolinewidth=1,
+            tickfont=dict(color=theme.muted, size=11),
+            ticks="",
+            fixedrange=True,
+            nticks=3,
+        )
+    )
+    # Dates along the bottom panel; the spike line still spans both panels.
+    fig.update_xaxes(
+        anchor="y2", range=[start - pd.Timedelta(hours=12), end + pd.Timedelta(hours=12)]
+    )
+    for y, text in ((1.0, metric.label), (0.31, f"{change_label} ({unit})")):
+        fig.add_annotation(
+            x=0, y=y, xref="paper", yref="paper", xanchor="left", yanchor="bottom",
+            text=text, showarrow=False, font=dict(color=theme.text_secondary, size=12),
+        )  # fmt: skip
+    return fig

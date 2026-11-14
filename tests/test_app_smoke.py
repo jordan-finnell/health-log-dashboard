@@ -15,7 +15,8 @@ PAGES = [
     "pages/1_Trends.py",
     "pages/2_Calendar.py",
     "pages/3_Patterns.py",
-    "pages/4_Data.py",
+    "pages/4_Weather.py",
+    "pages/5_Data.py",
 ]
 
 

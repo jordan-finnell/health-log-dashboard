@@ -3,9 +3,11 @@
 import math
 
 import streamlit as st
+import winds_of_change as woc
 
 import shared
 from health_log_dashboard import analytics, charts
+from health_log_dashboard.weather import DISPLAY_UNITS, FACTOR_KEYS, SHORT_LABELS
 
 ctx = shared.page_setup("Overview")
 daily = shared.load_daily(ctx)
@@ -67,6 +69,29 @@ for metric, slot in zip(ctx.config.metrics, tile_slots(len(ctx.config.metrics)),
         if newest is not None:
             when, rating = newest
             st.caption(f"Latest {rating:.0f} · {when:%b} {when.day}")
+
+weather = shared.load_weather(ctx, daily, quiet=True)
+if weather is not None:
+    lines = []
+    for key in FACTOR_KEYS:
+        look = weather.outlook(key, 24)
+        if look is None or math.isnan(look.next):
+            continue
+        unit = DISPLAY_UNITS.unit_for(woc.factor(key))
+        if abs(look.next) < 0.5:
+            line = f"{SHORT_LABELS[key]}: steady"
+        else:
+            arrow = "↑" if look.next > 0 else "↓"
+            line = f"{SHORT_LABELS[key]} {arrow} {abs(look.next):.0f} {unit}"
+        if not math.isnan(look.next_percentile):
+            line += f" · larger than {look.next_percentile:.0%} of past changes"
+            if look.next_percentile >= 0.8:
+                line = f"**{line}**"
+        lines.append(f"- {line}")
+    if lines:
+        with st.container(border=True):
+            st.markdown("**Weather · next 24 h**\n\n" + "\n".join(lines))
+            st.page_link("pages/4_Weather.py", label="Weather patterns", icon=":material/air:")
 
 st.subheader("Logging")
 streak = analytics.logging_streak(daily, as_of=None)
